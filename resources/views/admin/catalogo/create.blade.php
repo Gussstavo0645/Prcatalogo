@@ -313,64 +313,7 @@
   @if(!$catalog)
   
   @else
-  <div class="text-muted small mb-2">
-  Total en catálogo armado: {{ $catalogProducts->count() }}
-</div>
-
-    <div class="row g-3" id="catalogGrid">
-
-@forelse($catalogProducts as $cp)
-@php
-  $itemKey = trim($cp->code).'-'.trim($cp->color).'-'.($cp->page_number ?? 1);
-
-  $catImg = !empty($cp->color)
-      ? route('catalog.product.image', ['code' => $cp->code, 'color' => $cp->color])
-      : route('catalog.product.image', ['code' => $cp->code]);
-@endphp
-
-<div class="col-6 col-md-3" id="cat-item-{{ $itemKey }}">
-  <div class="card h-100">
-    <img
-      src="{{ $catImg }}"
-      class="card-img-top bg-white"
-      style="height:220px;object-fit:contain;width:100%;"
-      alt="{{ $cp->name }}"
-      onerror="this.onerror=null;this.src='https://via.placeholder.com/220x220?text=Sin+imagen';"
-    />
-
-    <div class="card-body">
-      <div class="fw-semibold">{{ $cp->name }}</div>
-      <div class="text-muted small">Q {{ number_format($cp->price, 2) }}</div>
-      <div class="text-muted small">Pág: {{ $cp->page_number ?? 1 }}</div>
-
-      <div class="d-flex justify-content-between align-items-center mt-2">
-        <span class="badge bg-secondary" id="grid-qty-{{ $itemKey }}">
-          {{ $cp->quantity }} u
-        </span>
-
-        <button type="button"
-                class="btn btn-outline-danger btn-sm"
-                onclick="removeFromCatalog('{{ $cp->code }}', '{{ $cp->color }}', {{ $catalog->id }}, {{ $cp->page_number ?? 1 }})">
-          Quitar
-        </button>
-      </div>
-    </div>
-  </div>
-</div>
-@empty
-  <div class="col-12" id="gridEmpty">
-    <div class="alert alert-light border">
-      Aún no has agregado productos a este catálogo.
-    </div>
-  </div>
-@endforelse
-
-@if($catalogProducts && $catalogProducts->count())
-  <div class="mt-3 text-center text-muted small">
-    Productos en catálogo: {{ $catalogProducts->count() }}
-  </div>
-@endif
-
+  
 <hr>
 @endif
 @if($catalog)
@@ -635,22 +578,7 @@ async function addToCatalog(btn, catalogId){
 
     updateCartCount();
 
-    // GRID ABAJO
-    const grid = document.getElementById('catalogGrid');
-    if(grid){
-      document.getElementById('gridEmpty')?.remove();
-
-      const existingGrid = document.getElementById(`cat-item-${key}`);
-      if(existingGrid){
-        const b = document.getElementById(`grid-qty-${key}`);
-        if(b) b.textContent = `${data.quantity} u`;
-      } else {
-        grid.insertAdjacentHTML(
-          'afterbegin',
-          renderGridCard(data.product, data.quantity, catalogId, data.page_number)
-        );
-      }
-    }
+   
 
   } catch (e) {
     console.error(e);
@@ -692,21 +620,6 @@ async function removeFromCatalog(code, color, catalogId, pageNumber = 1){
 
     const key = `${code}-${color}-${pageNumber}`;
 
-    document.getElementById(`cat-item-${key}`)?.remove();
-    document.getElementById(`cart-item-${key}`)?.remove();
-
-    updateCartCount();
-
-    const grid = document.getElementById('catalogGrid');
-    if(grid && !grid.querySelector('[id^="cat-item-"]')){
-      grid.insertAdjacentHTML('beforeend', `
-        <div class="col-12" id="gridEmpty">
-          <div class="alert alert-light border">
-            Aún no has agregado productos a este catálogo.
-          </div>
-        </div>
-      `);
-    }
 
     const panel = document.getElementById('cartPanel');
     if(panel && !panel.querySelector('[data-cart-item="1"]')){
