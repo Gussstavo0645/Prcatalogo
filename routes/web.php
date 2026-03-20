@@ -95,4 +95,6 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
      Route::delete('/catalogos/{catalogo}/paginas/{pagina}', [AdminCatalogo::class, 'destroyPage'])
     ->name('catalogs.paginas.destroy');
+
+    //ADMIN
 });
