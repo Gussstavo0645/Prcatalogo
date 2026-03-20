@@ -10,4 +10,7 @@ class Documento extends Model
         'mime',
         'archivo_binario'
     ];
+
+    // 👇 MUY IMPORTANTE
+    protected $hidden = ['archivo_binario'];
 }

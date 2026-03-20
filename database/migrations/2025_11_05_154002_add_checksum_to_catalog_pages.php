@@ -11,18 +11,18 @@ return new class extends Migration
      */
   public function up(): void
 {
-    Schema::table('catalog_pages', function (Blueprint $t) {
-        $t->string('checksum', 64)->nullable()->after('image_path');
-        $t->unique(['catalog_id', 'checksum']); // evita mismo archivo en el mismo catálogo
-    });
+  //  Schema::table('catalog_pages', function (Blueprint $t) {
+    //    $t->string('checksum', 64)->nullable()->after('image_path');
+      //  $t->unique(['catalog_id', 'checksum']); // evita mismo archivo en el mismo catálogo
+    //});
 }
 
 public function down(): void
 {
-    Schema::table('catalog_pages', function (Blueprint $t) {
-        $t->dropUnique(['catalog_id', 'checksum']);
-        $t->dropColumn('checksum');
-    });
+   // Schema::table('catalog_pages', function (Blueprint $t) {
+     //   $t->dropUnique(['catalog_id', 'checksum']);
+       // $t->dropColumn('checksum');
+    //});
 }
 
 };

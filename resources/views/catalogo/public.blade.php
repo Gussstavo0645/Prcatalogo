@@ -1,15 +1,26 @@
-{{-- resources/views/catalogs/public_show.blade.php --}}
 @extends('layouts.app')
 
 @php
-  $hasBlobPages = $pages->count() > 0;
-  $productosPorPagina = $productosPorPagina ?? collect();
+  //  solo verifica si hay paginas blob sin traer binario
+  $hasBlobPages = $catalog->paginas()
+      ->whereNotNull('archivo_binario')
+      ->exists();
+
+  //  trae solo columnas seguras no archivos binarios
+  $pages = $catalog->paginas()
+      ->select('id','catalog_id','page_number','mime') // agrega las que uses
+      ->whereNotNull('archivo_binario')
+      ->orderBy('page_number')
+      ->get();
+
+ $productosPorPagina = $productosPorPagina ?? collect();
+
   $total = $hasBlobPages ? $pages->count() : $productosPorPagina->count();
 @endphp
 
 @section('content')
 <style>
-  #flipbook-wrap{display:grid;place-items:center;padding:16px;margin-bottom:32px;} 
+  #flipbook-wrap{display:grid;place-items:center;padding:16px;margin-bottom:32px;}
   #flipbook{ width: 920px; height: 600px; overflow:hidden; position:relative; }
   #flipbook { cursor: grab; }
 #flipbook:active { cursor: grabbing; }
@@ -43,35 +54,38 @@
 /* grif 3X3 */
 .products-overlay{
   position:absolute;
-  top:42px;
   left:10px;
   right:10px;
+  top:50px;
   bottom:10px;
   z-index:5;
 
   display:grid;
   grid-template-columns:repeat(3, 1fr);
-  grid-template-rows:repeat(3, 1fr);
-  gap:8px;
+  grid-template-rows:repeat(3, 1fr);  /*  fuerza 3 filas */
+  gap:10px;
 
+  align-content:stretch;
   overflow:hidden;
 }
 
+/* card */
 .product-mini{
+  height:auto;              /*  deja que el grid mande */
+  min-height:0;
   display:flex;
   flex-direction:column;
-  height:100%;
-  min-height:0;
-  background:rgb(255, 255, 255);
-  border-radius:20px;
-  padding:6px;
-  box-shadow:0 4px 10px rgba(0,0,0,.14);
-  overflow:hidden;
+  background:rgba(255,255,255,.92);
+  border-radius:12px;
+  padding:8px;
+  box-shadow:0 4px 10px rgba(0,0,0,.22);
+  overflow:hidden;          /*  mejor que visible */
 }
 
+/* imagen */
 .product-mini img{
   width:100%;
-  height:90px;
+  height:80px;
   object-fit:contain;
   border-radius:20px;
   background:#fff;
@@ -87,11 +101,13 @@
   font-weight: 700
 }
 
+/* texto del nombre en el mini card (panel y overlay) */
 .p-name{
-  font-size:11px !important;
-  font-weight:700 !important;
-  line-height:1 !important;
-  margin-top:2px;
+
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  line-height: 1 !important;
+   margin-top:2px;
   min-height:22px;
 
   display:-webkit-box;
@@ -100,20 +116,24 @@
   overflow:hidden;
 }
 
+/* precio */
 .p-price{
-  font-size:11px !important;
-  line-height:1 !important;
-  margin-top:2px;
+  font-size: 15px !important;
+  line-height: 1.1 !important;
+}
+
+
+/*  boton azul abajo siempre */
+.product-mini .p-qty{
+  margin-top:auto;         /* lo empuja al fondo */
 }
 
 .product-mini button.badge{
-  margin-top:auto;
-  height:24px;
-  font-size:11px;
-  padding:2px 0;
-  border-radius:8px;
+  height: 20px;        /* alto */
+  font-size: 12px;     /* letra */
+  padding: 3px 0;      /* espaciointerno */
+  border-radius: 10px;  /* bordes */
 }
-
 
 .page-badge{
   position:absolute;
@@ -249,7 +269,6 @@
     <p class="text-muted">{{ $catalog->description }}</p>
   @endif
 
-
   {{--<div class="text-muted small">
     Páginas BLOB: {{ $pages->count() }} |
     Productos: {{ $productsFallback->count() }}
@@ -257,37 +276,33 @@
 </div>
 
 <div id="flipbook-wrap">
- <div id="flipbook">
+  <div id="flipbook">
+
   {{-- si hay paginas blob --}}
 @if($hasBlobPages)
 
   @foreach($pages as $pagina)
     @php
       $pageNum = (int) $pagina->page_number;
-      $items = $productosPorPagina->get($pageNum, collect());
+      $items = $productosPorPagina[$pageNum] ?? collect();
     @endphp
 
-   <div class="page" data-density="soft">
+    <div class="page {{ $pageNum === 1 ? 'page-cover' : '' }}"
+         data-density="{{ $pageNum === 1 ? 'hard' : 'soft' }}">
 
       <div class="page-badge">Página {{ $pageNum }}</div>
 
-      <div style="position:absolute; top:5px; right:5px; z-index:9999; background:#000; color:#fff; padding:6px; font-size:11px; border-radius:8px;">
-      BD página: {{ $pageNum }} <br>
-      Items: {{ $items->count() }}
-    </div>
-
+      {{-- imagen de pagina completa --}}
       <img
         src="{{ route('catalog_pages.image', $pagina->id) }}"
         class="page-img"
         alt="Página {{ $pageNum }}"
       >
-{{--PRODUCTOS ENCIMA DE LA HOJA--}}
-      @if($items->count() > 0)
+
+      {{-- productos encima de la hoja --}}
+    @if($items->count() > 0)
   <div class="products-overlay">
-
     @foreach($items as $prod)
-
-    
       @php
         $img = route('catalog.product.image', [
             'code' => trim((string) $prod->code),
@@ -295,13 +310,7 @@
         ]);
       @endphp
 
-      
-
       <div class="product-mini">
-
-        <div style="font-size:10px; color:red; background:#fff;">
-  prod: {{ $prod->display_code ?? $prod->code }} | page_number: {{ $prod->page_number }}
-</div>
         <img
           src="{{ $img }}"
           alt="{{ $prod->name }}"
@@ -336,32 +345,25 @@
     </div>
   @endforeach
 
-@else
-  <div class="page p-3 d-flex align-items-center justify-content-center">
-    <div class="alert alert-info m-0">
-      Este catálogo aún no tiene páginas ni productos.
-    </div>
-  </div>
-@endif
+    {{-- vacio --}}
+    @else
+      <div class="page p-3 d-flex align-items-center justify-content-center">
+        <div class="alert alert-info m-0">
+          Este catálogo aún no tiene páginas ni productos.
+        </div>
+      </div>
+    @endif
 
-   <div class="flip-controls">
+  </div>
+
+  <div class="flip-controls">
     <button id="prev" class="btn btn-outline-secondary">⟵ Anterior</button>
     <span id="page-indicator" class="text-muted small">1 / {{ max(1, $total) }}</span>
     <button id="next" class="btn btn-outline-secondary">Siguiente ⟶</button>
-   </div>
-   </div>
+  </div>
+</div>
 
-
-   <div class="container mt-3">
-    <label class="small text-muted">Link público:</label>
-    <div class="input-group">
-      <input type="text" id="publicLink" class="form-control" readonly value="{{ url('/c/'.$catalog->slug) }}">
-      <button type="button" class="btn btn-outline-primary" onclick="copyPublicLink()">Copiar</button>
-    </div>
-   </div>
-    </div>
-
-   {{-- ======= CARRITO UI ======= --}}
+{{-- ======= CARRITO UI ======= --}}
 <div id="cartFab" class="cart-fab" onclick="toggleCart()">
   <span id="cartCountFab" class="cart-count">0</span>
   Carrito
@@ -421,7 +423,7 @@
         {{-- STEP 1 --}}
         <div class="wizard-step active" id="step1">
           <h6 class="mb-3">Información del cliente</h6>
-          <div class="row g-2"> 
+          <div class="row g-2">
             <div class="col-md-6">
               <label class="form-label">Nombre completo *</label>
               <input type="text" class="form-control" id="cliNombre" placeholder="Nombre y apellido">
@@ -466,6 +468,7 @@ document.addEventListener("DOMContentLoaded", function(){
 });
 </script>
 
+
         {{-- STEP 2 --}}
         <div class="wizard-step" id="step2">
           <h6 class="mb-3">Información de entrega</h6>
@@ -492,7 +495,7 @@ document.addEventListener("DOMContentLoaded", function(){
           </div>
         </div>
 
-            <script>
+         <script>
 document.addEventListener("DOMContentLoaded", function(){
 
   const campos = [
@@ -572,16 +575,6 @@ document.addEventListener("DOMContentLoaded", function(){
 @endsection
 
 @section('scripts')
-
-<script>
-function copyPublicLink(){
-  const input = document.getElementById('publicLink');
-  input.select();
-  input.setSelectionRange(0, 99999);
-  navigator.clipboard.writeText(input.value);
-  alert('Link copiado ✔');
-}
-</script>
 
 <script>
 const CART_KEY = 'flipbook_cart_v1';
@@ -789,7 +782,7 @@ function validateStep3(){
     width: 460,
     height: 600,
     size: 'fixed',
-    showCover: false,
+    showCover: true,
     startPage: 0,
     useShadow: true,
     maxShadowOpacity: 0.2,
