@@ -2,9 +2,9 @@
 @extends('layouts.app')
 
 @php
-  $hasBlobPages = $pages->count() > 0;
-  $productosPorPagina = $productosPorPagina ?? collect();
-  $total = $hasBlobPages ? $pages->count() : $productosPorPagina->count();
+  $pagesRender = collect($pagesRender ?? []);
+  $hasBlobPages = $pagesRender->count() > 0;
+  $total = $hasBlobPages ? $pagesRender->count() : 0;
 @endphp
 
 @section('content')
@@ -261,77 +261,64 @@
   {{-- si hay paginas blob --}}
 @if($hasBlobPages)
 
-  @foreach($pages as $pagina)
+  @foreach($pagesRender as $renderPage)
     @php
-      $pageNum = (int) $pagina->page_number;
-      $items = $productosPorPagina->get($pageNum, collect());
+      $pagina = $renderPage['pagina'];
+      $pageNum = (int) $renderPage['page_number_label'];
+      $items = collect($renderPage['items'] ?? []);
     @endphp
 
-   <div class="page" data-density="soft">
+    <div class="page {{ $pageNum === 1 ? 'page-cover' : '' }}"
+         data-density="{{ $pageNum === 1 ? 'hard' : 'soft' }}">
 
       <div class="page-badge">Página {{ $pageNum }}</div>
-
-      <div style="position:absolute; top:5px; right:5px; z-index:9999; background:#000; color:#fff; padding:6px; font-size:11px; border-radius:8px;">
-      BD página: {{ $pageNum }} <br>
-      Items: {{ $items->count() }}
-    </div>
 
       <img
         src="{{ route('catalog_pages.image', $pagina->id) }}"
         class="page-img"
         alt="Página {{ $pageNum }}"
       >
-{{--PRODUCTOS ENCIMA DE LA HOJA--}}
+
       @if($items->count() > 0)
-  <div class="products-overlay">
+        <div class="products-overlay">
+          @foreach($items as $prod)
+            @php
+              $img = route('catalog.product.image', [
+                  'code' => trim((string) $prod->code),
+                  'color' => trim((string) ($prod->color ?? ''))
+              ]);
+            @endphp
 
-    @foreach($items as $prod)
+            <div class="product-mini">
+              <img
+                src="{{ $img }}"
+                alt="{{ $prod->name }}"
+                onerror="this.onerror=null;this.src='https://via.placeholder.com/300x200?text=Sin+foto';"
+              />
 
-    
-      @php
-        $img = route('catalog.product.image', [
-            'code' => trim((string) $prod->code),
-            'color' => trim((string) ($prod->color ?? ''))
-        ]);
-      @endphp
+              <div class="p-code">Código: {{ $prod->display_code ?? $prod->code }}</div>
+              <div class="p-name">{{ $prod->name }}</div>
+              <div class="p-price">Q {{ number_format($prod->price, 2) }}</div>
 
-      
-
-      <div class="product-mini">
-
-        <div style="font-size:10px; color:red; background:#fff;">
-  prod: {{ $prod->display_code ?? $prod->code }} | page_number: {{ $prod->page_number }}
-</div>
-        <img
-          src="{{ $img }}"
-          alt="{{ $prod->name }}"
-       {{--   style="width:100%;height:56px;object-fit:contain;border-radius:7px;display:block;background:#fff;"--}}
-          onerror="this.onerror=null;this.src='https://via.placeholder.com/300x200?text=Sin+foto';"
-        />
-
-        <div class="p-code">Código: {{ $prod->display_code ?? $prod->code }}</div>
-        <div class="p-name">{{ $prod->name }}</div>
-        <div class="p-price">Q {{ number_format($prod->price, 2) }}</div>
-
-        <button
-          type="button"
-          class="badge bg-primary mt-1 border-0 w-100 p-2"
-          onclick="addToCart({
-            id: '{{ $prod->code }}-{{ $prod->color }}',
-            code: '{{ $prod->code }}',
-            color: '{{ $prod->color }}',
-            name: @js($prod->name),
-            price: {{ (float) $prod->price }},
-            qty: {{ (int) ($prod->quantity ?? 1) }},
-            img: '{{ $img }}'
-          })"
-        >
-          {{ $prod->quantity ?? 1 }} AGREGAR
-        </button>
-      </div>
-    @endforeach
-  </div>
-@endif
+              <button
+                type="button"
+                class="badge bg-primary mt-1 border-0 w-100 p-2"
+                onclick="addToCart({
+                  id: '{{ $prod->code }}-{{ $prod->color }}',
+                  code: '{{ $prod->code }}',
+                  color: '{{ $prod->color }}',
+                  name: @js($prod->name),
+                  price: {{ (float) $prod->price }},
+                  qty: 1,
+                  img: '{{ $img }}'
+                })"
+              >
+                AGREGAR
+              </button>
+            </div>
+          @endforeach
+        </div>
+      @endif
 
     </div>
   @endforeach

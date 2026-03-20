@@ -1,21 +1,9 @@
 @extends('layouts.app')
 
 @php
-  //  solo verifica si hay paginas blob sin traer binario
-  $hasBlobPages = $catalog->paginas()
-      ->whereNotNull('archivo_binario')
-      ->exists();
-
-  //  trae solo columnas seguras no archivos binarios
-  $pages = $catalog->paginas()
-      ->select('id','catalog_id','page_number','mime') // agrega las que uses
-      ->whereNotNull('archivo_binario')
-      ->orderBy('page_number')
-      ->get();
-
- $productosPorPagina = $productosPorPagina ?? collect();
-
-  $total = $hasBlobPages ? $pages->count() : $productosPorPagina->count();
+  $pagesRender = collect($pagesRender ?? []);
+  $hasBlobPages = $pagesRender->count() > 0;
+  $total = $hasBlobPages ? $pagesRender->count() : 0;
 @endphp
 
 @section('content')
@@ -281,10 +269,11 @@
   {{-- si hay paginas blob --}}
 @if($hasBlobPages)
 
-  @foreach($pages as $pagina)
+  @foreach($pagesRender as $renderPage)
     @php
-      $pageNum = (int) $pagina->page_number;
-      $items = $productosPorPagina[$pageNum] ?? collect();
+      $pagina = $renderPage['pagina'];
+      $pageNum = (int) $renderPage['page_number_label'];
+      $items = collect($renderPage['items'] ?? []);
     @endphp
 
     <div class="page {{ $pageNum === 1 ? 'page-cover' : '' }}"

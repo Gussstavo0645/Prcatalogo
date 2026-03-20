@@ -18,9 +18,9 @@ class CatalogoController extends Controller
 
     /*VER CATALOGO
     */
- public function show($slug)
+public function show($slug)
 {
-     $catalog = Catalogo::where('slug', $slug)->firstOrFail();
+    $catalog = Catalogo::where('slug', $slug)->firstOrFail();
 
     $mes = '03/2026';
     $tipo = 'N';
@@ -46,7 +46,18 @@ class CatalogoController extends Controller
 
     if ($catalogItems->isEmpty()) {
         $productosPorPagina = collect();
-        return view('catalogo.show', compact('catalog', 'pages', 'productosPorPagina'));
+        $pagesRender = [];
+
+        foreach ($pages as $pagina) {
+            $pagesRender[] = [
+                'pagina' => $pagina,
+                'page_number_label' => (int) $pagina->page_number,
+                'items' => collect(),
+                'chunk_index' => 0,
+            ];
+        }
+
+        return view('catalogo.show', compact('catalog', 'pagesRender'));
     }
 
     // 2) traer inventario desde admin_ml
@@ -117,21 +128,49 @@ class CatalogoController extends Controller
         ];
     });
 
-  $productosPorPagina = $productos
-    ->sortBy([
-        ['page_number', 'asc'],
-        ['position', 'asc'],
-    ])
-    ->groupBy(function ($item) {
-        return (int) $item->page_number;
-    })
-    ->map(function ($items) {
-        return $items->sortBy('position')->values();
-    });
+    $productosPorPagina = $productos
+        ->sortBy([
+            ['page_number', 'asc'],
+            ['position', 'asc'],
+        ])
+        ->groupBy(function ($item) {
+            return (int) $item->page_number;
+        })
+        ->map(function ($items) {
+            return $items->sortBy('position')->values();
+        });
 
-    return view('catalogo.show', compact('catalog', 'pages', 'productosPorPagina'));
+    // AQUÍ VA LO NUEVO
+    $pagesRender = [];
+
+    foreach ($pages as $pagina) {
+        $pageNum = (int) $pagina->page_number;
+
+        $items = $productosPorPagina[$pageNum] ?? collect();
+
+        if ($items->count() > 0) {
+            $chunks = $items->chunk(9);
+
+            foreach ($chunks as $chunkIndex => $chunk) {
+                $pagesRender[] = [
+                    'pagina' => $pagina,
+                    'page_number_label' => $pageNum,
+                    'items' => $chunk->values(),
+                    'chunk_index' => $chunkIndex,
+                ];
+            }
+        } else {
+            $pagesRender[] = [
+                'pagina' => $pagina,
+                'page_number_label' => $pageNum,
+                'items' => collect(),
+                'chunk_index' => 0,
+            ];
+        }
+    }
+
+    return view('catalogo.show', compact('catalog', 'pagesRender'));
 }
-
     /*
     IMAGEN PAGINA (archivo_binario)
     */
@@ -151,9 +190,9 @@ class CatalogoController extends Controller
         ]);
     }
     
-  public function showPublic($slug)
+public function showPublic($slug)
 {
-      $catalog = Catalogo::where('slug', $slug)
+    $catalog = Catalogo::where('slug', $slug)
         ->where('is_public', true)
         ->firstOrFail();
 
@@ -179,8 +218,18 @@ class CatalogoController extends Controller
         ->get();
 
     if ($catalogItems->isEmpty()) {
-        $productosPorPagina = collect();
-        return view('catalogo.public', compact('catalog', 'pages', 'productosPorPagina'));
+        $pagesRender = [];
+
+        foreach ($pages as $pagina) {
+            $pagesRender[] = [
+                'pagina' => $pagina,
+                'page_number_label' => (int) $pagina->page_number,
+                'items' => collect(),
+                'chunk_index' => 0,
+            ];
+        }
+
+        return view('catalogo.public', compact('catalog', 'pagesRender'));
     }
 
     // Códigos exactos del catálogo
@@ -237,7 +286,6 @@ class CatalogoController extends Controller
         $lookupCode = $code;
         $lookupColor = $color;
 
-        // Si viene tipo DSI-8, separar para buscar en inventario/fotos
         if (str_contains($code, '-')) {
             $partes = explode('-', $code, 2);
             $codigoBase = trim((string) ($partes[0] ?? ''));
@@ -264,9 +312,9 @@ class CatalogoController extends Controller
         }
 
         return (object) [
-            'code' => $lookupCode,          // para buscar imagen
-            'color' => $lookupColor,        // para buscar imagen
-            'display_code' => $displayCode, // para mostrar
+            'code' => $lookupCode,
+            'color' => $lookupColor,
+            'display_code' => $displayCode,
             'name' => $nombre !== '' ? $nombre : 'Producto sin descripción',
             'price' => (float) ($inv->price ?? 0),
             'quantity' => (int) ($item->quantity ?? 1),
@@ -275,19 +323,47 @@ class CatalogoController extends Controller
         ];
     });
 
-   $productosPorPagina = $productos
-    ->sortBy([
-        ['page_number', 'asc'],
-        ['position', 'asc'],
-    ])
-    ->groupBy(function ($item) {
-        return (int) $item->page_number;
-    })
-    ->map(function ($items) {
-        return $items->sortBy('position')->values();
-    });
+    $productosPorPagina = $productos
+        ->sortBy([
+            ['page_number', 'asc'],
+            ['position', 'asc'],
+        ])
+        ->groupBy(function ($item) {
+            return (int) $item->page_number;
+        })
+        ->map(function ($items) {
+            return $items->sortBy('position')->values();
+        });
 
-    return view('catalogo.public', compact('catalog', 'pages', 'productosPorPagina'));
+    $pagesRender = [];
+
+    foreach ($pages as $pagina) {
+        $pageNum = (int) $pagina->page_number;
+
+        $items = $productosPorPagina->get($pageNum, collect());
+
+        if ($items->count() > 0) {
+            $chunks = $items->chunk(9);
+
+            foreach ($chunks as $chunkIndex => $chunk) {
+                $pagesRender[] = [
+                    'pagina' => $pagina,
+                    'page_number_label' => $pageNum,
+                    'items' => $chunk->values(),
+                    'chunk_index' => $chunkIndex,
+                ];
+            }
+        } else {
+            $pagesRender[] = [
+                'pagina' => $pagina,
+                'page_number_label' => $pageNum,
+                'items' => collect(),
+                'chunk_index' => 0,
+            ];
+        }
+    }
+
+    return view('catalogo.public', compact('catalog', 'pagesRender'));
 }
 
 public function productoImagen($code, $color = null)
