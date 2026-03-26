@@ -177,21 +177,37 @@ public function show($slug)
     /*
     IMAGEN PAGINA (archivo_binario)
     */
-    public function pageImage(PaginaCatalogo $page)
-    {
-        abort_if(is_null($page->archivo_binario), 404);
+  public function pageImage(PaginaCatalogo $page)
+{
+    abort_if(is_null($page->archivo_binario), 404);
 
-        $binary = $page->archivo_binario;
+    $dir = storage_path('app/public/pages_cache');
+    $path = $dir . "/page_{$page->id}.jpg";
 
-        if (is_resource($binary)) {
-            $binary = stream_get_contents($binary);
-        }
-
-        return response($binary, 200, [
-            'Content-Type' => $page->mime ?? 'image/jpeg',
+    if (file_exists($path)) {
+        return response()->file($path, [
             'Cache-Control' => 'public, max-age=86400',
+            'Content-Type' => 'image/jpeg',
         ]);
     }
+
+    if (!is_dir($dir)) {
+        mkdir($dir, 0777, true);
+    }
+
+    $binary = $page->archivo_binario;
+
+    if (is_resource($binary)) {
+        $binary = stream_get_contents($binary);
+    }
+
+    file_put_contents($path, $binary);
+
+    return response()->file($path, [
+        'Cache-Control' => 'public, max-age=86400',
+        'Content-Type' => $page->mime ?? 'image/jpeg',
+    ]);
+}
     
 public function showPublic($slug)
 {
@@ -375,72 +391,49 @@ public function productoImagen($code, $color = null)
     $code = trim((string) $code);
     $color = trim((string) ($color ?? ''));
 
-    $cacheKey = "producto_img_{$code}_{$color}";
+    $codigoBusqueda = $code;
+    $colorBusqueda = $color;
 
-    $cached = Cache::remember($cacheKey, 86400, function () use ($code, $color) {
-        $codigoBusqueda = $code;
-        $colorBusqueda = $color;
+    if (str_contains($code, '-')) {
+        $partes = explode('-', $code, 2);
 
-        // Si el código viene tipo DSI-8, separar
-        if (str_contains($code, '-')) {
-            $partes = explode('-', $code, 2);
+        $codigoBase = trim((string) ($partes[0] ?? ''));
+        $colorDesdeCodigo = trim((string) ($partes[1] ?? ''));
 
-            $codigoBase = trim((string) ($partes[0] ?? ''));
-            $colorDesdeCodigo = trim((string) ($partes[1] ?? ''));
-
-            if ($codigoBase !== '' && $colorDesdeCodigo !== '') {
-                $codigoBusqueda = $codigoBase;
-                $colorBusqueda = $colorDesdeCodigo;
-            }
+        if ($codigoBase !== '' && $colorDesdeCodigo !== '') {
+            $codigoBusqueda = $codigoBase;
+            $colorBusqueda = $colorDesdeCodigo;
         }
+    }
 
-        $row = null;
+    $row = null;
 
-        // 1) intento exacto: codigo + color
-        if ($colorBusqueda !== '' && $colorBusqueda !== '0') {
-            $row = DB::connection('admin_ml')
-                ->table('inv_fotos')
-                ->where('codigo', $codigoBusqueda)
-                ->where('color', $colorBusqueda)
-                ->select('foto')
-                ->first();
-        }
+    if ($colorBusqueda !== '' && $colorBusqueda !== '0') {
+        $row = DB::connection('admin_ml')
+            ->table('inv_fotos')
+            ->where('codigo', $codigoBusqueda)
+            ->where('color', $colorBusqueda)
+            ->select('foto')
+            ->first();
+    }
 
-        // 2) fallback: solo por código base
-        if (!$row || empty($row->foto)) {
-            $row = DB::connection('admin_ml')
-                ->table('inv_fotos')
-                ->where('codigo', $codigoBusqueda)
-                ->whereNotNull('foto')
-                ->select('foto')
-                ->first();
-        }
+    if (!$row || empty($row->foto)) {
+        $row = DB::connection('admin_ml')
+            ->table('inv_fotos')
+            ->where('codigo', $codigoBusqueda)
+            ->whereNotNull('foto')
+            ->select('foto')
+            ->first();
+    }
 
-        if (!$row || empty($row->foto)) {
-            return null;
-        }
+    if (!$row || empty($row->foto)) {
+        abort(404);
+    }
 
-        $mime = 'image/jpeg';
-
-        if (function_exists('finfo_buffer')) {
-            $finfo = new \finfo(FILEINFO_MIME_TYPE);
-            $detected = $finfo->buffer($row->foto);
-            if ($detected) {
-                $mime = $detected;
-            }
-        }
-
-        return [
-            'binary' => $row->foto,
-            'mime' => $mime,
-        ];
-    });
-
-    abort_if(!$cached || empty($cached['binary']), 404);
-
-    return response($cached['binary'])
-        ->header('Content-Type', $cached['mime'] ?? 'image/jpeg')
-        ->header('Cache-Control', 'public, max-age=86400');
+    return response($row->foto, 200, [
+        'Content-Type' => 'image/jpeg',
+        'Cache-Control' => 'public, max-age=86400',
+    ]);
 }
 
 public function productoImagenLarge($code, $color = null)
