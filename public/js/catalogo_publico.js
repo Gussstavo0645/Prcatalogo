@@ -402,13 +402,28 @@ document.addEventListener('click', function(e){
   if (!modal || !modalImg) return;
   if(modal.classList.contains('active')) return;
 
+  const thumbSrc = img.src;
+  const largeSrc = img.dataset.large || img.src;
+
+  // abrir rápido con thumb
+  modalImg.src = thumbSrc;
+  modal.classList.add('active');
+
+  // si falla la grande, se queda la thumb
   modalImg.onerror = function () {
     this.onerror = null;
-    this.src = img.src;
+    this.src = thumbSrc;
   };
 
-  modalImg.src = img.dataset.large || img.src;
-  modal.classList.add('active');
+  // cargar la grande en segundo plano
+  const preloader = new Image();
+  preloader.onload = function () {
+    modalImg.src = largeSrc;
+  };
+  preloader.onerror = function () {
+    modalImg.src = thumbSrc;
+  };
+  preloader.src = largeSrc;
 });
 
 document.getElementById('imgModal')?.addEventListener('click', closeImgModal);
@@ -424,3 +439,12 @@ document.addEventListener('keydown', function(e){
   }
 });
 
+document.querySelectorAll('.product-thumb').forEach(img => {
+  img.addEventListener('mouseenter', () => {
+    const large = img.dataset.large;
+    if (!large) return;
+
+    const preload = new Image();
+    preload.src = large;
+  }, { once: true });
+});
