@@ -40,6 +40,9 @@ Route::get('/catalogo/producto-imagen/{code}/{color?}', [CatalogoController::cla
 Route::get('/product-image/{product}', [CatalogoController::class, 'productImage'])
     ->name('admin.products.image');
 
+Route::get('/catalogo/producto-thumb/{code}/{color?}', [CatalogoController::class, 'productoThumb'])
+    ->name('catalog.product.thumb');
+
 /*
 |--------------------------------------------------------------------------
 | ADMIN
