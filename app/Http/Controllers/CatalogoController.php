@@ -451,63 +451,61 @@ public function productoImagenLarge($code, $color = null)
     $code = trim((string) $code);
     $color = trim((string) ($color ?? ''));
 
-    $codigoBusqueda = $code;
-    $colorBusqueda = $color;
+    $cacheKey = "producto_large_{$code}_{$color}";
 
-    // Si el código viene tipo DSI-8 o 1012-6
-    if (str_contains($code, '-')) {
-        $partes = explode('-', $code, 2);
+    $imageBinary = Cache::remember($cacheKey, 86400, function () use ($code, $color) {
+        $codigoBusqueda = $code;
+        $colorBusqueda = $color;
 
-        $codigoBase = trim((string) ($partes[0] ?? ''));
-        $colorDesdeCodigo = trim((string) ($partes[1] ?? ''));
+        // Si el código viene tipo DSI-8 o 1012-6
+        if (str_contains($code, '-')) {
+            $partes = explode('-', $code, 2);
 
-        if ($codigoBase !== '' && $colorDesdeCodigo !== '') {
-            $codigoBusqueda = $codigoBase;
-            $colorBusqueda = $colorDesdeCodigo;
+            $codigoBase = trim((string) ($partes[0] ?? ''));
+            $colorDesdeCodigo = trim((string) ($partes[1] ?? ''));
+
+            if ($codigoBase !== '' && $colorDesdeCodigo !== '') {
+                $codigoBusqueda = $codigoBase;
+                $colorBusqueda = $colorDesdeCodigo;
+            }
         }
-    }
 
-    // 1) intento exacto: codigo + color
-    if ($colorBusqueda !== '' && $colorBusqueda !== '0') {
-        $row = DB::connection('admin_ml')
-            ->table('inv_fotos')
-            ->where('codigo', $codigoBusqueda)
-            ->where('color', $colorBusqueda)
-            ->select('foto')
-            ->first();
+        $row = null;
 
-        if ($row && !empty($row->foto)) {
-            $manager = new ImageManager(new Driver());
-
-            $image = $manager->read($row->foto)
-                ->scale(width: 800)
-                ->toJpeg(85);
-
-            return response((string) $image)
-                ->header('Content-Type', 'image/jpeg')
-                ->header('Cache-Control', 'public, max-age=86400');
+        // 1) intento exacto: codigo + color
+        if ($colorBusqueda !== '' && $colorBusqueda !== '0') {
+            $row = DB::connection('admin_ml')
+                ->table('inv_fotos')
+                ->where('codigo', $codigoBusqueda)
+                ->where('color', $colorBusqueda)
+                ->select('foto')
+                ->first();
         }
-    }
 
-    // 2) fallback: solo por código base
-    $row = DB::connection('admin_ml')
-        ->table('inv_fotos')
-        ->where('codigo', $codigoBusqueda)
-        ->whereNotNull('foto')
-        ->select('foto')
-        ->first();
+        // 2) fallback: solo por código base
+        if (!$row || empty($row->foto)) {
+            $row = DB::connection('admin_ml')
+                ->table('inv_fotos')
+                ->where('codigo', $codigoBusqueda)
+                ->whereNotNull('foto')
+                ->select('foto')
+                ->first();
+        }
 
-    if (!$row || empty($row->foto)) {
-        abort(404);
-    }
+        if (!$row || empty($row->foto)) {
+            return null;
+        }
 
-    $manager = new ImageManager(new Driver());
+        $manager = new ImageManager(new Driver());
 
-    $image = $manager->read($row->foto)
-        ->scale(width: 800)
-        ->toJpeg(85);
+        return (string) $manager->read($row->foto)
+            ->scale(width: 800)
+            ->toJpeg(85);
+    });
 
-    return response((string) $image)
+    abort_if(!$imageBinary, 404);
+
+    return response($imageBinary)
         ->header('Content-Type', 'image/jpeg')
         ->header('Cache-Control', 'public, max-age=86400');
 }
