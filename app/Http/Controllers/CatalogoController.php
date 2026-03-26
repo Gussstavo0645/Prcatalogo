@@ -500,4 +500,81 @@ public function productoImagenLarge($code, $color = null)
         ->header('Cache-Control', 'public, max-age=86400');
 }
 
+public function productoThumb($code, $color = null)
+{
+    $code = trim((string) $code);
+    $color = trim((string) ($color ?? ''));
+
+    $codigoBusqueda = $code;
+    $colorBusqueda = $color;
+
+    if (str_contains($code, '-')) {
+        $partes = explode('-', $code, 2);
+
+        $codigoBase = trim((string) ($partes[0] ?? ''));
+        $colorDesdeCodigo = trim((string) ($partes[1] ?? ''));
+
+        if ($codigoBase !== '' && $colorDesdeCodigo !== '') {
+            $codigoBusqueda = $codigoBase;
+            $colorBusqueda = $colorDesdeCodigo;
+        }
+    }
+
+    $safeCode = preg_replace('/[^A-Za-z0-9_\-]/', '_', $codigoBusqueda);
+    $safeColor = preg_replace('/[^A-Za-z0-9_\-]/', '_', $colorBusqueda ?: '0');
+
+    $dir = storage_path('app/public/thumbs');
+    $path = $dir . "/{$safeCode}_{$safeColor}.jpg";
+
+    if (!is_dir($dir)) {
+        mkdir($dir, 0777, true);
+    }
+
+    // Si ya existe, servir directo
+    if (file_exists($path) && filesize($path) > 0) {
+        return response()->file($path, [
+            'Content-Type' => 'image/jpeg',
+            'Cache-Control' => 'public, max-age=86400',
+        ]);
+    }
+
+    $row = null;
+
+    // 1) intento exacto: codigo + color
+    if ($colorBusqueda !== '' && $colorBusqueda !== '0') {
+        $row = DB::connection('admin_ml')
+            ->table('inv_fotos')
+            ->where('codigo', $codigoBusqueda)
+            ->where('color', $colorBusqueda)
+            ->select('foto')
+            ->first();
+    }
+
+    // 2) fallback: solo por código
+    if (!$row || empty($row->foto)) {
+        $row = DB::connection('admin_ml')
+            ->table('inv_fotos')
+            ->where('codigo', $codigoBusqueda)
+            ->whereNotNull('foto')
+            ->select('foto')
+            ->first();
+    }
+
+    if (!$row || empty($row->foto)) {
+        abort(404);
+    }
+
+    $manager = new ImageManager(new Driver());
+
+    $encoded = $manager->read($row->foto)
+        ->scale(width: 200)
+        ->toJpeg(75);
+
+    file_put_contents($path, $encoded->toString());
+
+    return response()->file($path, [
+        'Content-Type' => 'image/jpeg',
+        'Cache-Control' => 'public, max-age=86400',
+    ]);
+}
 }
