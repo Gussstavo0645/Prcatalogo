@@ -33,6 +33,7 @@
     }
   }
 </style>
+
 <div class="container-fluid py-4">
 
    @if($errors->any())
@@ -57,26 +58,26 @@
     <p class="text-muted mb-2"></p>
   </div>
 
-  <div class="mb-3">
-    <label class="form-label fw-bold">Seleccionar catálogo para editar</label>
+  <form method="GET" action="{{ route('admin.catalogs.create') }}">
+  <input type="hidden" name="mesyope" value="{{ request('mesyope', $mes ?? '03/2026') }}">
+  <input type="hidden" name="tipocatalogo" value="{{ request('tipocatalogo', $tipo ?? 'N') }}">
 
-    <form method="GET" action="{{ route('admin.catalogs.create') }}">
-      <div class="input-group">
-        <select name="catalog" class="form-select" onchange="this.form.submit()">
-          <option value="">-- Crear nuevo catálogo --</option>
+  <label class="form-label fw-bold">Seleccionar catálogo para editar</label>
+  <div class="input-group">
+    <select name="catalog" class="form-select" onchange="this.form.submit()">
+      <option value="">-- Crear nuevo catálogo --</option>
+      @foreach($catalogs as $c)
+        <option value="{{ $c->id }}" {{ request('catalog') == $c->id ? 'selected' : '' }}>
+          {{ $c->title }}
+        </option>
+      @endforeach
+    </select>
 
-          @foreach($catalogs as $c)
-            <option value="{{ $c->id }}" {{ request('catalog') == $c->id ? 'selected' : '' }}>
-              {{ $c->title }}
-            </option>
-          @endforeach
-        </select>
-
-        @if(request('catalog'))
-          <a href="{{ route('admin.catalogs.create') }}" class="btn btn-secondary">Nuevo</a>
-        @endif
-      </div>
-    </form>
+    @if(request('catalog'))
+      <a href="{{ route('admin.catalogs.create') }}" class="btn btn-secondary">Nuevo</a>
+    @endif
+  </div>
+</form>
 
     --
   {{-- FILTRO DE CATÁLOGO (MES + TIPO) --}}
@@ -113,7 +114,7 @@
 
     <div class="col-md-2 d-flex gap-2">
       <button type="submit" class="btn btn-primary w-100">
-        🔄 Cargar productos
+        Cargar productos
       </button>
     </div>
   </div>
@@ -174,14 +175,14 @@
          </select>
          </div>
 
-      <div class="col-md-1 form-check">
-        <input type="checkbox"
-               class="form-check-input"
-               name="is_public"
-               id="is_public"
-               {{ old('is_public', true) ? 'checked' : '' }}>
-        <label for="is_public" class="form-check-label">Público</label>
-      </div>
+     <div class="col-md-1 form-check">
+  <input type="checkbox"
+         class="form-check-input"
+         name="is_public"
+         id="is_public"
+         {{ old('is_public', true) ? 'checked' : '' }}>
+  <label for="is_public" class="form-check-label">Público</label>
+</div>
     </div>
 
     <button class="btn btn-primary mt-3">Crear</button>
@@ -222,19 +223,112 @@
   {{-- PRODUCTOS DISPONIBLES --}}
   <h4 class="mb-3">Productos</h4>
 
+
+@if($catalog)
+<div id="bulkAddForm">
+  <div class="card mb-3 shadow-sm">
+    <div class="card-body">
+
+     <form method="GET" action="{{ route('admin.catalogs.create') }}" class="mb-3">
+  <input type="hidden" name="catalog" value="{{ request('catalog') }}">
+  <input type="hidden" name="mesyope" value="{{ request('mesyope', $mes ?? '03/2026') }}">
+  <input type="hidden" name="tipocatalogo" value="{{ request('tipocatalogo', $tipo ?? 'N') }}">
+
+  <div class="row g-2 mt-2">
+    <div class="col-md-3">
+      <label class="form-label fw-bold">Filtrar por página</label>
+      <input type="number"
+             name="filter_page"
+             class="form-control"
+             min="1"
+             value="{{ request('filter_page', $pageFilter ?? '') }}"
+             placeholder="Ej: 56">
+    </div>
+
+    <div class="col-md-9 d-flex align-items-end gap-2">
+      <button type="submit" class="btn btn-outline-dark btn-sm">
+        Filtrar
+      </button>
+
+      <a href="{{ route('admin.catalogs.create', [
+          'catalog' => request('catalog'),
+          'mesyope' => request('mesyope', $mes ?? '03/2026'),
+          'tipocatalogo' => request('tipocatalogo', $tipo ?? 'N')
+      ]) }}" class="btn btn-outline-secondary btn-sm">
+        Limpiar filtro
+      </a>
+    </div>
+  </div>
+</form>
+
+      {{-- BULK ADD --}}
+      <div class="row g-2 align-items-end">
+        <div class="col-md-3">
+          <label class="form-label fw-bold">Página</label>
+          <input type="number" name="page_number" id="bulkPageNumber" class="form-control" min="1" value="1" required>
+        </div>
+
+        <div class="col-md-3">
+          <label class="form-label fw-bold">Cantidad</label>
+          <input type="number" name="quantity" id="bulkQuantity" class="form-control" min="1" value="1" required>
+        </div>
+
+        <div class="col-md-3">
+          <label class="form-label fw-bold">Seleccionados</label>
+          <input type="text" id="selectedCount" class="form-control" value="0 productos" readonly>
+        </div>
+
+        <div class="col-md-3 d-grid">
+          <button type="button" class="btn btn-success" id="bulkAddBtn">
+            Agregar seleccionados
+          </button>
+        </div>
+      </div>
+
+      <div class="mt-3 d-flex flex-wrap gap-2">
+        <button type="button" class="btn btn-outline-primary btn-sm" id="selectAllBtn">
+          Seleccionar todos
+        </button>
+
+        <button type="button" class="btn btn-outline-secondary btn-sm" id="unselectAllBtn">
+          Quitar selección
+        </button>
+      </div>
+
+    </div>
+  </div>
+</div>
+@endif
+
   @if($products->isEmpty())
     <div class="alert alert-info">Aún no tienes productos registrados.</div>
   @else
     <div class="row g-3" id="availableProducts">
 
   @foreach($products as $p)
-  @php
+    @php
     $prod = $p instanceof \Illuminate\Support\Collection ? $p->first() : $p;
-  @endphp
-  @continue(!$prod)
+    @endphp
+    @continue(!$prod)
+     
 
-  <div class="col-6 col-md-3" id="product-card-{{$prod->code}}-{{$prod->color}}">
-    <div class="card h-100">
+   <div class="col-6 col-md-3 product-item"
+     id="product-card-{{$prod->code}}-{{$prod->color}}"
+     data-source-page="{{ (int)($prod->source_page ?? $prod->debug_page ?? 1) }}">
+   <div class="card h-100">
+
+    @if($catalog)
+      <div class="text-center p-2 border-bottom">
+        <input 
+  type="checkbox"
+  class="form-check-input product-check"
+  data-code="{{ trim($prod->code) }}"
+  data-color="{{ trim($prod->color) }}"
+  data-key="{{ trim($prod->code) }}-{{ trim($prod->color) }}"
+  style="transform: scale(1.2);"
+>
+      </div>
+    @endif
 
       @php
         $imgUrl = !empty($prod->color)
@@ -249,36 +343,44 @@
            onerror="this.onerror=null;this.src='https://via.placeholder.com/220x220?text=Sin+imagen';">
 
       <div class="card-body d-flex flex-column">
-        <div class="fw-semibold p-name">{{ $prod->name }}</div>
-        <div class="text-muted small p-price">Q {{ number_format($prod->price,2) }}</div>
+   <div class="fw-semibold p-name">{{ $prod->name }}</div>
 
-          <div class="p-qty mt-auto">
-            <span class="badge bg-primary w-100 text-center">1 u</span>
-          </div>
+  <div class="small text-danger">
+  debug_page: {{ $prod->debug_page ?? 'NULL' }} |
+  source_page: {{ $prod->source_page ?? 'NULL' }} |
+  filtro: {{ (int)($prod->source_page ?? $prod->debug_page ?? 1) }}
+</div>
 
+   <div class="text-muted small p-price">Q {{ number_format($prod->price,2) }}</div>
+
+    <div class="p-qty mt-auto">
+    <span class="badge bg-primary w-100 text-center">1 u</span>
+   </div>
           <div class="d-flex gap-2 mt-2">
 
              {{-- CANTIDAD --}}
         <input type="number" min="1" value="1"
                class="form-control form-control-sm"
                style="max-width:90px"
-               id="qty-{{ $prod->code }}-{{ $prod->color }}">
+               id="qty-{{ trim($prod->code) }}-{{ trim($prod->color) }}">
 
         {{-- PÁGINA AUTOMÁTICA DESDE INVENTARIO --}}
         <input type="number" min="1"
                value="{{ $prod->source_page ?? 1 }}"
                class="form-control form-control-sm"
                style="max-width:90px"
-               id="page-{{ $prod->code }}-{{ $prod->color }}">
+               id="page-{{ trim($prod->code) }}-{{ trim($prod->color) }}">
 
-              <button type="button"
-        class="btn btn-primary btn-sm ms-auto"
-        data-code="{{ $prod->code }}"
-        data-color="{{ $prod->color }}"
+
+             <button type="button"
+    class="btn btn-primary btn-sm ms-auto"
+    data-code="{{ $prod->code }}"
+    data-color="{{ $prod->color }}"
+    data-key="{{ trim($prod->code) }}-{{ trim($prod->color) }}"
         onclick="addToCatalog(this, {{ $catalog?->id ?? 'null' }})"
         {{ $catalog ? '' : 'disabled' }}>
-  Agregar
-</button>
+   Agregar
+   </button>
 
 
     <button type="button"
@@ -296,23 +398,26 @@
                      </div>
                                      </div>
                             </div>
-                                                  @endforeach
+   @endforeach
+
+   </div>
+
+@if($catalog)
+  </div>
+@endif
+
+<div class="mt-3">
+  {{ $products->appends(request()->query())->links() }}
 </div>
+@endif
 
+    <hr class="my-4">
 
-    <div class="mt-3">
-      {{ $products->appends(request()->query())->links() }}
+   {{-- Catalogo armado --}}
 
-    </div>
-  @endif
-
-  <hr class="my-4">
-
-  {{-- Catalogo armado --}}
-
-  @if(!$catalog)
+   @if(!$catalog)
   
-  @else
+   @else
   
 <hr>
 @endif
@@ -371,6 +476,29 @@
   </div>
 </div>
 @endif
+
+@if($catalog)
+<div class="alert alert-info">
+
+  <div>
+    <strong>🔵 Vista interna:</strong><br>
+    <a href="{{ url('/catalogos/'.$catalog->slug) }}" target="_blank">
+      {{ url('/catalogos/'.$catalog->slug) }}
+    </a>
+  </div>
+
+  <hr>
+
+  <div>
+    <strong>🟢 Vista pública:</strong><br>
+    <a href="{{ url('/c/'.$catalog->slug) }}" target="_blank">
+      {{ url('/c/'.$catalog->slug) }}
+    </a>
+  </div>
+
+</div>
+@endif
+
 @endsection
 
 @section('scripts')
@@ -506,17 +634,22 @@ async function addToCatalog(btn, catalogId){
       return;
     }
 
-    const code = (btn?.dataset.code || '').trim();
-    const color = (btn?.dataset.color || '').trim();
-    const keyBase = (btn?.dataset.key || `${code}-${color}`).trim();
+  const code = (btn?.dataset.code || '').trim();
+const color = (btn?.dataset.color || '').trim();
+const keyBase = (btn?.dataset.key || `${code}-${color}`).trim();
+
 
     if(!code){
       alert('El producto no tiene código.');
       return;
     }
 
-    const qty = Number(document.getElementById(`qty-${keyBase}`)?.value || 1);
-    const pageNumber = Number(document.getElementById(`page-${keyBase}`)?.value || 1);
+    const qtyInput = document.getElementById(`qty-${keyBase}`);
+const pageInput = document.getElementById(`page-${keyBase}`);
+
+const qty = qtyInput ? Number(qtyInput.value || 1) : 1;
+const pageNumber = pageInput ? Number(pageInput.value || 1) : 1;
+
 
     const res = await fetch(`/admin/catalogos/${catalogId}/products`, {
       method: 'POST',
@@ -662,4 +795,175 @@ document.addEventListener('DOMContentLoaded', () => {
   updateCartCount();
 });
 </script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  const checks = document.querySelectorAll('.product-check');
+  const selectedCount = document.getElementById('selectedCount');
+  const selectAllBtn = document.getElementById('selectAllBtn');
+  const unselectAllBtn = document.getElementById('unselectAllBtn');
+  const bulkAddBtn = document.getElementById('bulkAddBtn');
+  const catalogId = window.__CATALOG_ID__;
+
+  function updateSelectedCount() {
+    if (!selectedCount) return;
+    const total = document.querySelectorAll('.product-check:checked').length;
+    selectedCount.value = total + ' productos';
+  }
+
+  checks.forEach(chk => {
+    chk.addEventListener('change', updateSelectedCount);
+  });
+
+  if (selectAllBtn) {
+    selectAllBtn.addEventListener('click', function () {
+      checks.forEach(chk => chk.checked = true);
+      updateSelectedCount();
+    });
+  }
+
+  if (unselectAllBtn) {
+    unselectAllBtn.addEventListener('click', function () {
+      checks.forEach(chk => chk.checked = false);
+      updateSelectedCount();
+    });
+  }
+
+  async function bulkAddSelected() {
+    if (!catalogId) {
+      alert('Primero crea o selecciona un catálogo.');
+      return;
+    }
+
+    const selected = Array.from(document.querySelectorAll('.product-check:checked'));
+
+    if (!selected.length) {
+      alert('Debes seleccionar al menos un producto.');
+      return;
+    }
+
+    const pageInput = document.getElementById('bulkPageNumber');
+    const qtyInput = document.getElementById('bulkQuantity');
+
+    const pageNumber = Number(pageInput?.value || 1);
+    const quantity = Number(qtyInput?.value || 1);
+
+    if (!pageNumber || pageNumber < 1) {
+      alert('Debes indicar una página válida.');
+      return;
+    }
+
+    if (!quantity || quantity < 1) {
+      alert('Debes indicar una cantidad válida.');
+      return;
+    }
+
+    if (bulkAddBtn) {
+      bulkAddBtn.disabled = true;
+      bulkAddBtn.textContent = 'Agregando...';
+    }
+
+    let okCount = 0;
+    let failCount = 0;
+
+    for (const chk of selected) {
+      const code = (chk.dataset.code || '').trim();
+      const color = (chk.dataset.color || '').trim();
+      const key = (chk.dataset.key || `${code}-${color}`).trim();
+
+      if (!code) {
+        failCount++;
+        continue;
+      }
+
+      try {
+        const res = await fetch(`/admin/catalogos/${catalogId}/products`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+          },
+          body: JSON.stringify({
+            code: code,
+            color: color,
+            quantity: quantity,
+            page_number: pageNumber
+          })
+        });
+
+        let data = null;
+        const ct = res.headers.get('content-type') || '';
+
+        if (ct.includes('application/json')) {
+          data = await res.json();
+        } else {
+          failCount++;
+          continue;
+        }
+
+        if (!res.ok || !data || !data.ok || !data.product) {
+          failCount++;
+          continue;
+        }
+
+        const itemKey = `${data.product.code}-${data.product.color}-${data.page_number}`;
+
+        const panel = document.getElementById('cartPanel');
+        if (panel) {
+          document.getElementById('cartEmpty')?.remove();
+
+          const existingCart = document.getElementById(`cart-item-${itemKey}`);
+          if (existingCart) {
+            const b = document.getElementById(`cart-qty-${itemKey}`);
+            if (b) b.textContent = `${data.quantity} u`;
+          } else {
+            panel.insertAdjacentHTML(
+              'afterbegin',
+              renderCartRow(data.product, data.quantity, catalogId, data.page_number)
+            );
+          }
+        }
+
+        // opcional: actualizar también los inputs individuales visualmente
+        const qtyBox = document.getElementById(`qty-${key}`);
+        const pageBox = document.getElementById(`page-${key}`);
+        if (qtyBox) qtyBox.value = quantity;
+        if (pageBox) pageBox.value = pageNumber;
+
+        chk.checked = false;
+        okCount++;
+
+      } catch (e) {
+        console.error('Error bulk add:', code, color, e);
+        failCount++;
+      }
+    }
+
+    updateCartCount();
+    updateSelectedCount();
+
+    if (bulkAddBtn) {
+      bulkAddBtn.disabled = false;
+      bulkAddBtn.textContent = 'Agregar seleccionados';
+    }
+
+    if (okCount > 0 && failCount === 0) {
+      alert(`Se agregaron ${okCount} productos correctamente.`);
+    } else if (okCount > 0 && failCount > 0) {
+      alert(`Se agregaron ${okCount} productos y fallaron ${failCount}.`);
+    } else {
+      alert('No se pudo agregar ningún producto.');
+    }
+  }
+
+  if (bulkAddBtn) {
+    bulkAddBtn.addEventListener('click', bulkAddSelected);
+  }
+
+  updateSelectedCount();
+});
+</script>
+
+
 @endsection
