@@ -3,17 +3,15 @@
 <head>
 
   <meta name="csrf-token" content="{{ csrf_token() }}">
-
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>@yield('title', 'Catálogo Digital')</title>
 
   {{-- Bootstrap 5 --}}
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-
   {{-- Iconos FontAwesome --}}
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-
+  <link rel="stylesheet" href="{{asset('css/catalogo_interno.css')}}">
   {{-- StPageFlip CSS (debe ir en <head>) --}}
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/page-flip@2.0.7/dist/css/page-flip.min.css">
 
@@ -87,6 +85,7 @@
 
   {{-- StPageFlip JS (va antes de </body>) --}}
   <script src="https://cdn.jsdelivr.net/npm/page-flip@2.0.7/dist/js/page-flip.browser.min.js"></script>
+  <script src="{{asset('js/catalogo_interno.js')}}"> </script>
 <!--  MODAL CREAR PRODUCTO -->
 <div class="modal fade" id="modalProducto" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-lg">
