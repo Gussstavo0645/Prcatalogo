@@ -11,102 +11,109 @@ use App\Models\Catalogo;
 use App\Models\PaginaCatalogo;
 use App\Models\Product;
 
+use function Symfony\Component\Clock\now;
+
 class AdminCatalogo extends Controller
 {
     // AHORA: si viene ?catalog=ID, lo carga
-    public function create(Request $r){
+  public function create(Request $r)
+{
+    $catalogs = Catalogo::select('id', 'title')->orderByDesc('id')->get();
 
-      $catalogs = Catalogo::select('id', 'title')->orderByDesc('id')->get();
+    $mes  = $r->input('mesyope', '03/2026');
+    $tipo = $r->input('tipocatalogo', 'N');
+    $pageFilter = $r->input('filter_page');
 
-// filtros dinámicos desde la vista
-$mes  = $r->input('mesyope', '03/2026');
-$tipo = $r->input('tipocatalogo', 'N');
+    $productsQuery = DB::connection('admin_ml')
+        ->table('inventario as i')
+        ->leftJoin('inv_fotos as f', function ($join) {
+            $join->on('i.Codprod', '=', 'f.codigo')
+                 ->on('i.color', '=', 'f.color');
+        })
+        ->where('i.mesyope', $mes)
+        ->where('i.tipocatalogo', $tipo);
 
-// productos disponibles desde admin_ml
-$products = DB::connection('admin_ml')
-    ->table('inventario as i')
-    ->leftJoin('inv_fotos as f', function ($join) {
-        $join->on('i.Codprod', '=', 'f.codigo')
-             ->on('i.Color', '=', 'f.color');
-    })
-    ->where('i.mesyope', $mes)
-    ->where('i.tipocatalogo', $tipo)
-    ->select([
-        'i.Codprod as code',
-        'i.Descripcion as name',
-        'i.Precventa as price',
-        'i.color as color',
-        'i.pagina as source_page',
-        'f.foto as foto',
-    ])
-    ->orderBy('i.Descripcion')
-    ->paginate(9, ['*'], 'prod_page')
-    ->appends([
-        'catalog' => $r->input('catalog'),
-        'mesyope' => $mes,
-        'tipocatalogo' => $tipo,
-    ]);
+   if (!empty($pageFilter)) {
+        $productsQuery->where('i.pagina', (int) $pageFilter);
+    }
 
-$catalog = null;
-$catalogProducts = collect();
-
-if ($r->filled('catalog')) {
-    $catalog = Catalogo::findOrFail($r->input('catalog'));
-
-    // productos ya agregados al catálogo
-    $items = DB::table('catalog_products as cp')
-        ->where('cp.catalog_id', $catalog->id)
+    $products = $productsQuery
         ->select([
-            'cp.code',
-            'cp.color',
-            'cp.quantity',
-            'cp.page_number',
-            'cp.position',
+            'i.Codprod as code',
+            'i.Descripcion as name',
+            'i.Precventa as price',
+            'i.color as color',
+            'i.pagina as source_page',
+            DB::raw('i.pagina as debug_page'),
+            'f.foto as foto',
         ])
-        ->orderBy('cp.page_number')
-        ->orderByRaw('COALESCE(cp.position, 999999)')
-        ->get();
+        ->orderBy('i.Descripcion')
+        ->paginate(20, ['*'], 'prod_page')
+        ->appends([
+            'catalog' => $r->input('catalog'),
+            'mesyope' => $mes,
+            'tipocatalogo' => $tipo,
+          'filter_page' => $pageFilter,
+        ]);
 
-    if ($items->isNotEmpty()) {
-        $catalogProducts = $items->map(function ($item) use ($mes, $tipo) {
-            $inv = DB::connection('admin_ml')
-                ->table('inventario as i')
-                ->where('i.mesyope', $mes)
-                ->where('i.tipocatalogo', $tipo)
-                ->where('i.Codprod', $item->code)
-                ->where('i.color', $item->color)
-                ->select([
-                    'i.Codprod as code',
-                    'i.color as color',
-                    'i.Descripcion as name',
-                    'i.Precventa as price',
-                ])
-                ->first();
+    $catalog = null;
+    $catalogProducts = collect();
 
-            return (object) [
-                'code' => $item->code,
-                'color' => $item->color,
-                'name' => $inv->name ?? 'Producto no encontrado',
-                'price' => (float)($inv->price ?? 0),
-                'quantity' => $item->quantity,
-                'page_number' => $item->page_number,
-                'position' => $item->position,
-            ];
-        });
+    if ($r->filled('catalog')) {
+        $catalog = Catalogo::findOrFail($r->input('catalog'));
+
+        $items = DB::table('catalog_products as cp')
+            ->where('cp.catalog_id', $catalog->id)
+            ->select([
+                'cp.code',
+                'cp.color',
+                'cp.quantity',
+                'cp.page_number',
+                'cp.position',
+            ])
+            ->orderBy('cp.page_number')
+            ->orderByRaw('COALESCE(cp.position, 999999)')
+            ->get();
+
+        if ($items->isNotEmpty()) {
+            $catalogProducts = $items->map(function ($item) use ($mes, $tipo) {
+                $inv = DB::connection('admin_ml')
+                    ->table('inventario as i')
+                    ->where('i.mesyope', $mes)
+                    ->where('i.tipocatalogo', $tipo)
+                    ->where('i.Codprod', $item->code)
+                    ->where('i.color', $item->color)
+                    ->select([
+                        'i.Codprod as code',
+                        'i.color as color',
+                        'i.Descripcion as name',
+                        'i.Precventa as price',
+                    ])
+                    ->first();
+
+                return (object) [
+                    'code' => $item->code,
+                    'color' => $item->color,
+                    'name' => $inv->name ?? 'Producto no encontrado',
+                    'price' => (float)($inv->price ?? 0),
+                    'quantity' => $item->quantity,
+                    'page_number' => $item->page_number,
+                    'position' => $item->position,
+                ];
+            });
+        }
     }
+
+    return view('admin.catalogo.create', compact(
+        'catalogs',
+        'catalog',
+        'products',
+        'catalogProducts',
+        'mes',
+        'tipo',
+      'pageFilter'
+    ));
 }
-
-return view('admin.catalogo.create', compact(
-    'catalogs',
-    'catalog',
-    'products',
-    'catalogProducts',
-    'mes',
-    'tipo'
-));
-             
-
-    }
 
     public function edit($catalog)
 {
@@ -360,6 +367,65 @@ public function destroyPage($catalogoId, $paginaId)
     return redirect()
         ->back()
         ->with('success', 'Página eliminada correctamente.');
+}
+
+public  function bulkAddProducts(Request $request, $catalog)
+{
+    $request->validate([
+        'product_ids'  => 'required|array|min:1',
+        'product_ids.*' => 'required|integer',
+        'page_number'  => 'nullable|integer|min:1',
+        'quanity'     => 'nullable|integer|min:1',
+
+    ], [
+        'product_ids.required' => 'Debes seleccionar almenos un producto.',
+        'product_ids.min'      => 'Debes seleccionar almenos un producto.',
+
+    ]);
+    
+    $catalogId =(int) $catalog;
+    $productIds = array_unique($request->product_ids);
+    $pageNumber = (int) ($request->page_number?? 1);
+    $quantity =(int) ($request->quantity ?? 1);
+    
+    $agregados = 0;
+    $actualizados = 0;
+    
+    foreach ($productIds as $productId){
+$existe = DB::table('catalog_products')
+->where('catalog_id', $catalogId)
+->where('product_id', $productId)
+->first();
+
+if($existe){
+    DB::table('catalog_products')
+    ->where('catalog_id', $catalogId)
+    ->where('product_id', $productId)
+    ->update([
+        'page_number' => $pageNumber,
+        'quantity'   =>  $quantity,
+        'update_at'   => now(),
+    ]);
+
+    $actualizados++;
+}else{
+    DB::table('catalog_products')->insert([
+        'catalog_id'  => $catalogId,
+        'product_id'  => $productId,
+        'page_number' => $pageNumber,
+        'quantity'    =>$quantity,
+        'create_at'   => now(),
+        'updated_at'   => now(),
+    ]);
+
+    $agregados++;
+}
+    }
+
+     return back()->with('success',"proceso completadp. Agregados: {$agregados}, actualizados: {$actualizados}.");
+
+
+
 }
     
 }
