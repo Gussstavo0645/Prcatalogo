@@ -19,7 +19,10 @@ Route::get('/', fn() => redirect()->route('catalogs.index'));
 Route::get('/catalogos', [CatalogoController::class, 'index'])
     ->name('catalogs.index');
 
-Route::get('/c/{slug}', [CatalogoController::class, 'showPublic'])
+Route::get('/catalogos/{slug}', [CatalogoController::class, 'show'])
+    ->name('catalog.show');
+
+    Route::get('/c/{slug}', [CatalogoController::class, 'showPublic'])
     ->name('catalog.public');
 
 Route::post('/pedido/finalizar', [PedidoPublicController::class, 'store'])
@@ -30,6 +33,9 @@ Route::get('/catalog-pages/{page}/image', [CatalogoController::class, 'pageImage
 
 Route::get('/catalogo/producto-imagen/{code}/{color?}', [CatalogoController::class, 'productoImagen'])
     ->name('catalog.product.image');
+
+    Route::get('/catalogo/producto-imagen-large/{code}/{color?}', [CatalogoController::class, 'productoImagenLarge'])
+    ->name('catalog.product.image.large');
 
 Route::get('/product-image/{product}', [CatalogoController::class, 'productImage'])
     ->name('admin.products.image');
@@ -96,6 +102,8 @@ Route::prefix('admin')->name('admin.')->group(function () {
      Route::delete('/catalogos/{catalogo}/paginas/{pagina}', [AdminCatalogo::class, 'destroyPage'])
     ->name('catalogs.paginas.destroy');
 
+    Route::post('/catalogos/{catalog}/bulk-add-products', [AdminCatalogo::class, 'bulkAddProducts'])
+    ->name('admin.catalogs.bulkAddProducts');
     //ADMIN 
     //publico
     // prueba git
