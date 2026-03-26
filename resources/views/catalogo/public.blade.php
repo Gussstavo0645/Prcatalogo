@@ -56,22 +56,27 @@
     @foreach($items as $prod)
       @php
         $img = route('catalog.product.thumb', [
-            'code' => trim((string) $prod->code),
-            'color' => trim((string) ($prod->color ?? ''))
+            'code' => $prod->code,
+            'color' => $prod->color
+        ]);
+
+        $imgLarge = route('catalog.product.image',[
+          'code' => $prod->code,
+          'color' => $prod->color
         ]);
       @endphp
 
       <div class="product-mini">
-       <img
-  src="{{ $img }}"
-  alt="{{ $prod->name }}"
-  class="product-thumb"
-  data-large="{{ $img }}"
-  loading="lazy"
-  decoding="async"
-  style="cursor: zoom-in;"
-  onerror="this.onerror=null;this.src='https://via.placeholder.com/300x200?text=Sin+foto';"
-/>
+        <img
+          src="{{ $img }}"
+          alt="{{ $prod->name }}"
+          class="product-thumb"
+          data-large="{{ $imgLarge }}"
+          loading="lazy"
+          decoding="async"
+          style="cursor: zoom-in;"
+          onerror="this.onerror=null;this.src='https://via.placeholder.com/300x200?text=Sin+foto';"
+        />
 
         <div class="p-code">Código: {{ $prod->display_code ?? $prod->code }}</div>
         <div class="p-name">{{ $prod->name }}</div>
