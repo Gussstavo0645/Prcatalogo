@@ -55,7 +55,7 @@
   <div class="products-overlay">
     @foreach($items as $prod)
       @php
-        $img = route('catalog.product.image', [
+        $img = route('catalog.product.thumb', [
             'code' => trim((string) $prod->code),
             'color' => trim((string) ($prod->color ?? ''))
         ]);
