@@ -43,6 +43,9 @@ Route::get('/product-image/{product}', [CatalogoController::class, 'productImage
 Route::get('/catalogo/producto-thumb/{code}/{color?}', [CatalogoController::class, 'productoThumb'])
     ->name('catalog.product.thumb');
 
+ Route::get('/c/{slug}/bloque', [CatalogoController::class, 'pagesBlock'])
+    ->name('catalog.public.block');
+
 /*
 |--------------------------------------------------------------------------
 | ADMIN
@@ -107,6 +110,10 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
     Route::post('/catalogos/{catalog}/bulk-add-products', [AdminCatalogo::class, 'bulkAddProducts'])
     ->name('admin.catalogs.bulkAddProducts');
+
+    Route::get('/catalogos/products/search', [AdminCatalogo::class, 'searchProducts'])
+    ->name('catalogs.products.search');
+
     //ADMIN 
     //publico
     // prueba git

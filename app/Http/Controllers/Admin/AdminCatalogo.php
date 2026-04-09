@@ -16,52 +16,29 @@ use function Symfony\Component\Clock\now;
 class AdminCatalogo extends Controller
 {
     // AHORA: si viene ?catalog=ID, lo carga
-  public function create(Request $r)
+public function create(Request $r)
 {
+    set_time_limit(120);
+    ini_set('memory_limit', '1024M');
+
     $catalogs = Catalogo::select('id', 'title')->orderByDesc('id')->get();
 
-    $mes  = $r->input('mesyope', '03/2026');
+    $mes = $r->input('mesyope', '04/2026');
     $tipo = $r->input('tipocatalogo', 'N');
     $pageFilter = $r->input('filter_page');
-
-    $productsQuery = DB::connection('admin_ml')
-        ->table('inventario as i')
-        ->leftJoin('inv_fotos as f', function ($join) {
-            $join->on('i.Codprod', '=', 'f.codigo')
-                 ->on('i.color', '=', 'f.color');
-        })
-        ->where('i.mesyope', $mes)
-        ->where('i.tipocatalogo', $tipo);
-
-   if (!empty($pageFilter)) {
-        $productsQuery->where('i.pagina', (int) $pageFilter);
-    }
-
-    $products = $productsQuery
-        ->select([
-            'i.Codprod as code',
-            'i.Descripcion as name',
-            'i.Precventa as price',
-            'i.color as color',
-            'i.pagina as source_page',
-            DB::raw('i.pagina as debug_page'),
-            'f.foto as foto',
-        ])
-        ->orderBy('i.Descripcion')
-        ->paginate(20, ['*'], 'prod_page')
-        ->appends([
-            'catalog' => $r->input('catalog'),
-            'mesyope' => $mes,
-            'tipocatalogo' => $tipo,
-          'filter_page' => $pageFilter,
-        ]);
 
     $catalog = null;
     $catalogProducts = collect();
 
     if ($r->filled('catalog')) {
         $catalog = Catalogo::findOrFail($r->input('catalog'));
+    }
 
+    // IMPORTANTE:
+    // create() ya no debe consultar inventario pesado para el grid de búsqueda
+    $products = collect();
+
+    if ($catalog) {
         $items = DB::table('catalog_products as cp')
             ->where('cp.catalog_id', $catalog->id)
             ->select([
@@ -76,26 +53,34 @@ class AdminCatalogo extends Controller
             ->get();
 
         if ($items->isNotEmpty()) {
-            $catalogProducts = $items->map(function ($item) use ($mes, $tipo) {
-                $inv = DB::connection('admin_ml')
-                    ->table('inventario as i')
-                    ->where('i.mesyope', $mes)
-                    ->where('i.tipocatalogo', $tipo)
-                    ->where('i.Codprod', $item->code)
-                    ->where('i.color', $item->color)
-                    ->select([
-                        'i.Codprod as code',
-                        'i.color as color',
-                        'i.Descripcion as name',
-                        'i.Precventa as price',
-                    ])
-                    ->first();
+            $codes = $items->pluck('code')->filter()->unique()->values()->all();
+
+            $inventario = DB::connection('admin_ml')
+                ->table('inventario as i')
+                ->where('i.mesyope', $mes)
+                ->where('i.tipocatalogo', $tipo)
+                ->whereIn('i.Codprod', $codes)
+                ->select([
+                    'i.Codprod as code',
+                    'i.color as color',
+                    'i.Descripcion as name',
+                    'i.Precventa as price',
+                ])
+                ->get();
+
+            $inventarioMap = $inventario->keyBy(function ($row) {
+                return trim((string) $row->code) . '|' . trim((string) $row->color);
+            });
+
+            $catalogProducts = $items->map(function ($item) use ($inventarioMap) {
+                $key = trim((string) $item->code) . '|' . trim((string) $item->color);
+                $inv = $inventarioMap->get($key);
 
                 return (object) [
                     'code' => $item->code,
                     'color' => $item->color,
                     'name' => $inv->name ?? 'Producto no encontrado',
-                    'price' => (float)($inv->price ?? 0),
+                    'price' => (float) ($inv->price ?? 0),
                     'quantity' => $item->quantity,
                     'page_number' => $item->page_number,
                     'position' => $item->position,
@@ -111,10 +96,9 @@ class AdminCatalogo extends Controller
         'catalogProducts',
         'mes',
         'tipo',
-      'pageFilter'
+        'pageFilter'
     ));
 }
-
     public function edit($catalog)
 {
      $catalog = \App\Models\Catalogo::with(['productos'])->findOrFail($catalog);
@@ -197,19 +181,22 @@ class AdminCatalogo extends Controller
      *  AJAX: Agregar producto al catálogo POR PÁGINA (catalog_products)
      * Requiere: column page_number en catalog_products
      */
- public function addProduct(Request $r, Catalogo $catalog)
+public function addProduct(Request $r, Catalogo $catalog)
 {
-   $data = $r->validate([
+    $data = $r->validate([
         'code'        => 'required|string|max:255',
         'color'       => 'nullable|string|max:255',
         'quantity'    => 'required|integer|min:1',
         'page_number' => 'required|integer|min:1',
     ]);
 
+    $code = trim((string) $data['code']);
+    $color = trim((string) ($data['color'] ?? ''));
+
     $existing = DB::table('catalog_products')
         ->where('catalog_id', $catalog->id)
-        ->where('code', $data['code'])
-        ->where('color', $data['color'])
+        ->where('code', $code)
+        ->where('color', $color)
         ->where('page_number', $data['page_number'])
         ->first();
 
@@ -218,8 +205,8 @@ class AdminCatalogo extends Controller
 
         DB::table('catalog_products')
             ->where('catalog_id', $catalog->id)
-            ->where('code', $data['code'])
-            ->where('color', $data['color'])
+            ->where('code', $code)
+            ->where('color', $color)
             ->where('page_number', $data['page_number'])
             ->update([
                 'quantity' => $finalQty,
@@ -230,8 +217,8 @@ class AdminCatalogo extends Controller
 
         DB::table('catalog_products')->insert([
             'catalog_id'  => $catalog->id,
-            'code'        => $data['code'],
-            'color'       => $data['color'],
+            'code'        => $code,
+            'color'       => $color,
             'quantity'    => $finalQty,
             'page_number' => $data['page_number'],
             'position'    => 1,
@@ -240,13 +227,29 @@ class AdminCatalogo extends Controller
         ]);
     }
 
+    $inventario = DB::connection('admin_ml')
+        ->table('inventario as i')
+        ->where('i.mesyope', $catalog->mesyope)
+        ->where('i.tipocatalogo', $catalog->tipocatalogo)
+        ->whereRaw('TRIM(i.Codprod) = ?', [$code])
+        ->whereRaw('TRIM(COALESCE(i.color, "")) = ?', [$color])
+        ->select([
+            'i.Codprod as code',
+            'i.color as color',
+            'i.Descripcion as name',
+            'i.Precventa as price',
+            'i.pagina as source_page',
+        ])
+        ->first();
+
     return response()->json([
         'ok' => true,
         'product' => [
-            'code' => $data['code'],
-            'color' => $data['color'],
-            'name' => 'Producto',
-            'price' => 0,
+            'code' => $code,
+            'color' => $color,
+            'name' => $inventario->name ?? 'Producto sin descripción',
+            'price' => (float) ($inventario->price ?? 0),
+            'source_page' => $inventario->source_page ?? null,
         ],
         'quantity' => $finalQty,
         'page_number' => $data['page_number'],
@@ -295,29 +298,6 @@ class AdminCatalogo extends Controller
     ]);
 }
 
-public function store(Request $r)
-{
-    $data = $r->validate([
-        'title'       => 'required|string|max:255',
-        'description' => 'nullable|string|max:1000',
-        'type'        => 'required|string|max:5',
-        'is_public'   => 'nullable',
-    ]);
-
-    $catalog = Catalogo::create([
-        'title'       => $data['title'],
-        'description' => $data['description'] ?? null,
-        'type'        => $data['type'],
-        'is_public'   => $r->boolean('is_public'),
-        'slug'        => Str::slug($data['title']) . '-' . strtolower(Str::random(6)),
-    ]);
-
-    return redirect()->route('admin.catalogs.create', [
-        'catalog' => $catalog->id,
-        'mesyope' => $r->input('mesyope', '03/2026'),
-        'tipocatalogo' => $r->input('tipocatalogo', 'N'),
-    ])->with('ok', 'Catálogo creado correctamente.');
-}
 
 public function destroyPage($catalogoId, $paginaId)
 {
@@ -369,63 +349,137 @@ public function destroyPage($catalogoId, $paginaId)
         ->with('success', 'Página eliminada correctamente.');
 }
 
-public  function bulkAddProducts(Request $request, $catalog)
+public function store(Request $r)
+{
+    $data = $r->validate([
+        'title'        => 'required|string|max:255',
+        'description'  => 'nullable|string|max:1000',
+        'type'         => 'required|string|max:5',
+        'is_public'    => 'nullable',
+        'mesyope'      => 'required|string|max:7',
+        'tipocatalogo' => 'required|string|max:5',
+    ]);
+
+    $catalog = Catalogo::create([
+        'title'        => $data['title'],
+        'description'  => $data['description'] ?? null,
+        'type'         => $data['type'],
+        'is_public'    => $r->boolean('is_public'),
+        'slug'         => Str::slug($data['title']) . '-' . strtolower(Str::random(6)),
+        'mesyope'      => $data['mesyope'],
+        'tipocatalogo' => $data['tipocatalogo'],
+    ]);
+
+    return redirect()->route('admin.catalogs.create', [
+        'catalog'      => $catalog->id,
+        'mesyope'      => $catalog->mesyope,
+        'tipocatalogo' => $catalog->tipocatalogo,
+    ])->with('ok', 'Catálogo creado correctamente.');
+}
+
+public function bulkAddProducts(Request $request, $catalog)
 {
     $request->validate([
-        'product_ids'  => 'required|array|min:1',
+        'product_ids'   => 'required|array|min:1',
         'product_ids.*' => 'required|integer',
-        'page_number'  => 'nullable|integer|min:1',
-        'quanity'     => 'nullable|integer|min:1',
-
+        'page_number'   => 'nullable|integer|min:1',
+        'quantity'      => 'nullable|integer|min:1',
     ], [
-        'product_ids.required' => 'Debes seleccionar almenos un producto.',
-        'product_ids.min'      => 'Debes seleccionar almenos un producto.',
-
+        'product_ids.required' => 'Debes seleccionar al menos un producto.',
+        'product_ids.min'      => 'Debes seleccionar al menos un producto.',
     ]);
-    
-    $catalogId =(int) $catalog;
+
+    $catalogId  = (int) $catalog;
     $productIds = array_unique($request->product_ids);
-    $pageNumber = (int) ($request->page_number?? 1);
-    $quantity =(int) ($request->quantity ?? 1);
-    
+    $pageNumber = (int) ($request->page_number ?? 1);
+    $quantity   = (int) ($request->quantity ?? 1);
+
     $agregados = 0;
     $actualizados = 0;
-    
-    foreach ($productIds as $productId){
-$existe = DB::table('catalog_products')
-->where('catalog_id', $catalogId)
-->where('product_id', $productId)
-->first();
 
-if($existe){
-    DB::table('catalog_products')
-    ->where('catalog_id', $catalogId)
-    ->where('product_id', $productId)
-    ->update([
-        'page_number' => $pageNumber,
-        'quantity'   =>  $quantity,
-        'update_at'   => now(),
-    ]);
+    foreach ($productIds as $productId) {
+        $existe = DB::table('catalog_products')
+            ->where('catalog_id', $catalogId)
+            ->where('product_id', $productId)
+            ->first();
 
-    $actualizados++;
-}else{
-    DB::table('catalog_products')->insert([
-        'catalog_id'  => $catalogId,
-        'product_id'  => $productId,
-        'page_number' => $pageNumber,
-        'quantity'    =>$quantity,
-        'create_at'   => now(),
-        'updated_at'   => now(),
-    ]);
+        if ($existe) {
+            DB::table('catalog_products')
+                ->where('catalog_id', $catalogId)
+                ->where('product_id', $productId)
+                ->update([
+                    'page_number' => $pageNumber,
+                    'quantity'    => $quantity,
+                    'updated_at'  => now(),
+                ]);
 
-    $agregados++;
-}
+            $actualizados++;
+        } else {
+            DB::table('catalog_products')->insert([
+                'catalog_id'  => $catalogId,
+                'product_id'  => $productId,
+                'page_number' => $pageNumber,
+                'quantity'    => $quantity,
+                'created_at'  => now(),
+                'updated_at'  => now(),
+            ]);
+
+            $agregados++;
+        }
     }
 
-     return back()->with('success',"proceso completadp. Agregados: {$agregados}, actualizados: {$actualizados}.");
+    return back()->with(
+        'success',
+        "Proceso completado. Agregados: {$agregados}, actualizados: {$actualizados}."
+    );
+}
 
+public function searchProducts(Request $r)
+{
+    $mes = $r->input('mesyope', '04/2026');
+    $tipo = $r->input('tipocatalogo', 'N');
+    $pageFilter = trim((string) $r->input('filter_page'));
+    $catalogId = $r->input('catalog');
 
+    $catalog = null;
+    if ($catalogId) {
+        $catalog = Catalogo::select('id', 'title')->find($catalogId);
+    }
 
+    $productsQuery = DB::connection('admin_ml')
+        ->table('inventario as i')
+        ->where('i.mesyope', $mes)
+        ->where('i.tipocatalogo', $tipo);
+
+    if ($pageFilter !== '') {
+        $productsQuery->where('i.pagina', $pageFilter);
+    }
+
+    $products = $productsQuery
+        ->select([
+            'i.Codprod as code',
+            'i.Descripcion as name',
+            'i.Precventa as price',
+            'i.color as color',
+            'i.pagina as source_page',
+        ])
+        ->orderBy('i.pagina')
+        ->orderBy('i.Descripcion')
+        ->simplePaginate(20, ['*'], 'prod_page')
+        ->appends([
+            'catalog' => $catalogId,
+            'mesyope' => $mes,
+            'tipocatalogo' => $tipo,
+            'filter_page' => $pageFilter,
+        ]);
+
+    return view('admin.catalogo.parcial.products_list', compact(
+        'products',
+        'catalog',
+        'mes',
+        'tipo',
+        'pageFilter'
+    ));
 }
     
 }

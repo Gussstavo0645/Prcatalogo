@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
 use Intervention\Image\ImageManager;
 use Intervention\Image\Drivers\Gd\Driver;
+use Illuminate\Http\Request;
 
 class CatalogoController extends Controller
 {
@@ -25,7 +26,7 @@ public function show($slug)
 {
     $catalog = Catalogo::where('slug', $slug)->firstOrFail();
 
-    $mes = '03/2026';
+    $mes = '04/2026';
     $tipo = 'N';
 
     $pages = $catalog->paginas()
@@ -98,38 +99,47 @@ public function show($slug)
             }) ?? $rows->first();
         });
 
-    $productos = $catalogItems->map(function ($item) use ($inventarioMap, $inventarioByCode) {
-        $code = trim((string)($item->code ?? ''));
-        $color = trim((string)($item->color ?? ''));
-        $key = $code . '|' . $color;
+  $productos = $catalogItems->map(function ($item) use ($inventarioMap, $inventarioByCode) {
+    $codeOriginal = trim((string) ($item->code ?? ''));
+    $colorOriginal = trim((string) ($item->color ?? ''));
 
-        // 1. intento exacto: code + color
-        $inv = $inventarioMap->get($key);
+    $lookupCode = $codeOriginal;
+    $lookupColor = $colorOriginal;
 
-        // 2. fallback: solo code
-        $nombre = trim((string)($inv->name ?? ''));
-        if (!$inv || $nombre === '') {
-            $inv = $inventarioByCode->get($code);
-            $nombre = trim((string)($inv->name ?? ''));
+    if (str_contains($codeOriginal, '-')) {
+        $partes = explode('-', $codeOriginal, 2);
+        $lookupCode = trim((string) ($partes[0] ?? ''));
+        if ($lookupColor === '') {
+            $lookupColor = trim((string) ($partes[1] ?? ''));
         }
+    }
 
-        // código para mostrar
-        $displayCode = $code;
-        if ($code !== '' && $color !== '' && $color !== '0' && !str_contains($code, '-')) {
-            $displayCode = $code . '-' . $color;
-        }
+    $key = $lookupCode . '|' . $lookupColor;
 
-        return (object) [
-            'code' => $code,
-            'color' => $color,
-            'display_code' => $displayCode,
-            'name' => $nombre !== '' ? $nombre : 'Producto sin descripción',
-            'price' => (float)($inv->price ?? 0),
-            'quantity' => (int)($item->quantity ?? 1),
-            'page_number' => (int)($item->page_number ?? 1),
-            'position' => (int)($item->position ?? 1),
-        ];
-    });
+    // 1) exacto por código + color
+    $invExact = $inventarioMap->get($key);
+
+    // 2) fallback solo para nombre, nunca para precio
+    $invByCode = $inventarioByCode->get($lookupCode);
+
+    $name = trim((string) ($invExact->name ?? ''));
+    if ($name === '') {
+        $name = trim((string) ($invByCode->name ?? ''));
+    }
+
+    $price = $invExact ? (float) ($invExact->price ?? 0) : 0;
+
+    return (object) [
+        'code' => $lookupCode,
+        'color' => $lookupColor,
+        'display_code' => $lookupCode . ($lookupColor !== '' ? '-' . $lookupColor : ''),
+        'name' => $name !== '' ? $name : 'Producto sin descripción',
+        'price' => $price,
+        'quantity' => (int) ($item->quantity ?? 1),
+        'page_number' => (int) ($item->page_number ?? 1),
+        'position' => (int) ($item->position ?? 1),
+    ];
+});
 
     $productosPorPagina = $productos
         ->sortBy([
@@ -211,179 +221,15 @@ public function show($slug)
     
 public function showPublic($slug)
 {
-    $data = Cache::remember("catalogo_publico_{$slug}", 300, function () use ($slug) {
-        $catalog = Catalogo::where('slug', $slug)
-            ->where('is_public', true)
-            ->firstOrFail();
+    $catalog = Catalogo::where('slug', $slug)
+        ->where('is_public', true)
+        ->firstOrFail();
 
-        $mes = '03/2026';
-        $tipo = 'N';
-
-        $pages = $catalog->paginas()
-            ->select('id', 'catalog_id', 'page_number', 'mime')
-            ->orderBy('page_number')
-            ->get();
-
-        $catalogItems = DB::table('catalog_products as cp')
-            ->where('cp.catalog_id', $catalog->id)
-            ->select([
-                'cp.code',
-                'cp.color',
-                'cp.quantity',
-                'cp.page_number',
-                'cp.position',
-            ])
-            ->orderBy('cp.page_number')
-            ->orderByRaw('COALESCE(cp.position, 999999)')
-            ->get();
-
-        if ($catalogItems->isEmpty()) {
-            $pagesRender = [];
-
-            foreach ($pages as $pagina) {
-                $pagesRender[] = [
-                    'pagina' => $pagina,
-                    'page_number_label' => (int) $pagina->page_number,
-                    'items' => collect(),
-                    'chunk_index' => 0,
-                ];
-            }
-
-            return compact('catalog', 'pagesRender');
-        }
-
-        $codes = $catalogItems->pluck('code')
-            ->filter()
-            ->map(fn($v) => trim((string) $v))
-            ->unique()
-            ->values();
-
-        $baseCodes = $catalogItems->pluck('code')
-            ->filter()
-            ->map(function ($v) {
-                $v = trim((string) $v);
-                return str_contains($v, '-') ? trim(explode('-', $v, 2)[0]) : $v;
-            })
-            ->filter()
-            ->unique()
-            ->values();
-
-        $allCodes = $codes->merge($baseCodes)->unique()->values();
-
-        $inventario = DB::connection('admin_ml')
-            ->table('inventario as i')
-            ->where('i.mesyope', $mes)
-            ->where('i.tipocatalogo', $tipo)
-            ->whereIn('i.Codprod', $allCodes)
-            ->select([
-                'i.Codprod as code',
-                'i.color as color',
-                'i.Descripcion as name',
-                'i.Precventa as price',
-            ])
-            ->get();
-
-        $inventarioMap = $inventario->keyBy(function ($row) {
-            return trim((string) $row->code) . '|' . trim((string) $row->color);
-        });
-
-        $inventarioByCode = $inventario
-            ->groupBy(function ($row) {
-                return trim((string) $row->code);
-            })
-            ->map(function ($rows) {
-                return $rows->first(function ($row) {
-                    return trim((string) ($row->name ?? '')) !== '';
-                }) ?? $rows->first();
-            });
-
-        $productos = $catalogItems->map(function ($item) use ($inventarioMap, $inventarioByCode) {
-            $code = trim((string) ($item->code ?? ''));
-            $color = trim((string) ($item->color ?? ''));
-
-            $lookupCode = $code;
-            $lookupColor = $color;
-
-            if (str_contains($code, '-')) {
-                $partes = explode('-', $code, 2);
-                $codigoBase = trim((string) ($partes[0] ?? ''));
-                $colorDesdeCodigo = trim((string) ($partes[1] ?? ''));
-
-                if ($codigoBase !== '' && $colorDesdeCodigo !== '') {
-                    $lookupCode = $codigoBase;
-                    $lookupColor = $colorDesdeCodigo;
-                }
-            }
-
-            $key = $lookupCode . '|' . $lookupColor;
-            $inv = $inventarioMap->get($key);
-
-            $nombre = trim((string) ($inv->name ?? ''));
-            if (!$inv || $nombre === '') {
-                $inv = $inventarioByCode->get($lookupCode);
-                $nombre = trim((string) ($inv->name ?? ''));
-            }
-
-            $displayCode = $code;
-            if (!str_contains($code, '-') && $lookupColor !== '' && $lookupColor !== '0') {
-                $displayCode = $code . '-' . $lookupColor;
-            }
-
-            return (object) [
-                'code' => $lookupCode,
-                'color' => $lookupColor,
-                'display_code' => $displayCode,
-                'name' => $nombre !== '' ? $nombre : 'Producto sin descripción',
-                'price' => (float) ($inv->price ?? 0),
-                'quantity' => (int) ($item->quantity ?? 1),
-                'page_number' => (int) ($item->page_number ?? 1),
-                'position' => (int) ($item->position ?? 1),
-            ];
-        });
-
-        $productosPorPagina = $productos
-            ->sortBy([
-                ['page_number', 'asc'],
-                ['position', 'asc'],
-            ])
-            ->groupBy(function ($item) {
-                return (int) $item->page_number;
-            })
-            ->map(function ($items) {
-                return $items->sortBy('position')->values();
-            });
-
-        $pagesRender = [];
-
-        foreach ($pages as $pagina) {
-            $pageNum = (int) $pagina->page_number;
-            $items = $productosPorPagina->get($pageNum, collect());
-
-            if ($items->count() > 0) {
-                $chunks = $items->chunk(9);
-
-                foreach ($chunks as $chunkIndex => $chunk) {
-                    $pagesRender[] = [
-                        'pagina' => $pagina,
-                        'page_number_label' => $pageNum,
-                        'items' => $chunk->values(),
-                        'chunk_index' => $chunkIndex,
-                    ];
-                }
-            } else {
-                $pagesRender[] = [
-                    'pagina' => $pagina,
-                    'page_number_label' => $pageNum,
-                    'items' => collect(),
-                    'chunk_index' => 0,
-                ];
-            }
-        }
-
-        return compact('catalog', 'pagesRender');
+    $pagesRender = Cache::remember("catalogo_publico_{$catalog->id}", 300, function () use ($catalog) {
+        return $this->buildPublicPagesRender($catalog);
     });
 
-    return view('catalogo.public', $data);
+    return view('catalogo.public', compact('catalog', 'pagesRender'));
 }
 
 public function productoImagen($code, $color = null)
@@ -406,25 +252,15 @@ public function productoImagen($code, $color = null)
         }
     }
 
-    $row = null;
+    $query = DB::connection('admin_ml')
+        ->table('inv_fotos')
+        ->where('codigo', $codigoBusqueda);
 
     if ($colorBusqueda !== '' && $colorBusqueda !== '0') {
-        $row = DB::connection('admin_ml')
-            ->table('inv_fotos')
-            ->where('codigo', $codigoBusqueda)
-            ->where('color', $colorBusqueda)
-            ->select('foto')
-            ->first();
+        $query->where('color', $colorBusqueda);
     }
 
-    if (!$row || empty($row->foto)) {
-        $row = DB::connection('admin_ml')
-            ->table('inv_fotos')
-            ->where('codigo', $codigoBusqueda)
-            ->whereNotNull('foto')
-            ->select('foto')
-            ->first();
-    }
+    $row = $query->select('foto')->first();
 
     if (!$row || empty($row->foto)) {
         abort(404);
@@ -444,46 +280,29 @@ public function productoImagenLarge($code, $color = null)
     $cacheKey = "producto_large_{$code}_{$color}";
 
     $imageBinary = Cache::remember($cacheKey, 86400, function () use ($code, $color) {
+
         $codigoBusqueda = $code;
         $colorBusqueda = $color;
 
-        // Si el código viene tipo DSI-8 o 1012-6
         if (str_contains($code, '-')) {
             $partes = explode('-', $code, 2);
 
-            $codigoBase = trim((string) ($partes[0] ?? ''));
-            $colorDesdeCodigo = trim((string) ($partes[1] ?? ''));
-
-            if ($codigoBase !== '' && $colorDesdeCodigo !== '') {
-                $codigoBusqueda = $codigoBase;
-                $colorBusqueda = $colorDesdeCodigo;
-            }
+            $codigoBusqueda = trim((string) ($partes[0] ?? ''));
+            $colorBusqueda = trim((string) ($partes[1] ?? ''));
         }
 
-        $row = null;
+        $query = DB::connection('admin_ml')
+            ->table('inv_fotos')
+            ->where('codigo', $codigoBusqueda);
 
-        // 1) intento exacto: codigo + color
         if ($colorBusqueda !== '' && $colorBusqueda !== '0') {
-            $row = DB::connection('admin_ml')
-                ->table('inv_fotos')
-                ->where('codigo', $codigoBusqueda)
-                ->where('color', $colorBusqueda)
-                ->select('foto')
-                ->first();
+            $query->where('color', $colorBusqueda);
         }
 
-        // 2) fallback: solo por código base
-        if (!$row || empty($row->foto)) {
-            $row = DB::connection('admin_ml')
-                ->table('inv_fotos')
-                ->where('codigo', $codigoBusqueda)
-                ->whereNotNull('foto')
-                ->select('foto')
-                ->first();
-        }
+        $row = $query->select('foto')->first();
 
         if (!$row || empty($row->foto)) {
-            return null;
+            return null; 
         }
 
         $manager = new ImageManager(new Driver());
@@ -521,7 +340,7 @@ public function productoThumb($code, $color = null)
     }
 
     $safeCode = preg_replace('/[^A-Za-z0-9_\-]/', '_', $codigoBusqueda);
-    $safeColor = preg_replace('/[^A-Za-z0-9_\-]/', '_', $colorBusqueda ?: '0');
+    $safeColor = preg_replace('/[^A-Za-z0-9_\-]/', '_', $colorBusqueda !== '' ? $colorBusqueda : '0');
 
     $dir = storage_path('app/public/thumbs');
     $path = $dir . "/{$safeCode}_{$safeColor}.jpg";
@@ -530,43 +349,37 @@ public function productoThumb($code, $color = null)
         mkdir($dir, 0777, true);
     }
 
-    // Si ya existe, servir directo
+    // Durante pruebas, puedes comentar este bloque para forzar regeneración
     if (file_exists($path) && filesize($path) > 0) {
         return response()->file($path, [
             'Content-Type' => 'image/jpeg',
-            'Cache-Control' => 'public, max-age=86400',
+           'Cache-Control' => 'public, max-age=86400',
         ]);
     }
 
-    $row = null;
+    $query = DB::connection('admin_ml')
+        ->table('inv_fotos')
+        ->whereRaw('TRIM(codigo) = ?', [$codigoBusqueda]);
 
-    // 1) intento exacto: codigo + color
     if ($colorBusqueda !== '' && $colorBusqueda !== '0') {
-        $row = DB::connection('admin_ml')
-            ->table('inv_fotos')
-            ->where('codigo', $codigoBusqueda)
-            ->where('color', $colorBusqueda)
-            ->select('foto')
-            ->first();
+        $query->whereRaw('TRIM(color) = ?', [$colorBusqueda]);
     }
 
-    // 2) fallback: solo por código
-    if (!$row || empty($row->foto)) {
-        $row = DB::connection('admin_ml')
-            ->table('inv_fotos')
-            ->where('codigo', $codigoBusqueda)
-            ->whereNotNull('foto')
-            ->select('foto')
-            ->first();
-    }
+    $row = $query->select('foto')->first();
 
     if (!$row || empty($row->foto)) {
         abort(404);
     }
 
+    $binary = $row->foto;
+
+    if (is_resource($binary)) {
+        $binary = stream_get_contents($binary);
+    }
+
     $manager = new ImageManager(new Driver());
 
-    $encoded = $manager->read($row->foto)
+    $encoded = $manager->read($binary)
         ->scale(width: 200)
         ->toJpeg(75);
 
@@ -575,6 +388,189 @@ public function productoThumb($code, $color = null)
     return response()->file($path, [
         'Content-Type' => 'image/jpeg',
         'Cache-Control' => 'public, max-age=86400',
+    ]);
+}
+
+protected function buildPublicPagesRender($catalog)
+{
+    $mes = $catalog->mesyope ?? '04/2026';
+    $tipo = $catalog->tipocatalogo ?? 'N';
+
+    $pages = $catalog->paginas()
+        ->select('id', 'catalog_id', 'page_number', 'mime')
+        ->orderBy('page_number')
+        ->get();
+
+    $catalogItems = DB::table('catalog_products as cp')
+        ->where('cp.catalog_id', $catalog->id)
+        ->select([
+            'cp.code',
+            'cp.color',
+            'cp.quantity',
+            'cp.page_number',
+            'cp.position',
+        ])
+        ->orderBy('cp.page_number')
+        ->orderByRaw('COALESCE(cp.position, 999999)')
+        ->get();
+
+    if ($catalogItems->isEmpty()) {
+        $pagesRender = [];
+
+        foreach ($pages as $pagina) {
+            $pagesRender[] = [
+                'pagina' => $pagina,
+                'page_number_label' => (int) $pagina->page_number,
+                'items' => collect(),
+                'chunk_index' => 0,
+            ];
+        }
+
+        return $pagesRender;
+    }
+
+    $codes = $catalogItems->pluck('code')
+        ->filter()
+        ->map(function ($v) {
+            $v = trim((string) $v);
+            return str_contains($v, '-') ? trim(explode('-', $v, 2)[0]) : $v;
+        })
+        ->unique()
+        ->values();
+
+    $inventario = DB::connection('admin_ml')
+        ->table('inventario as i')
+        ->where('i.mesyope', $mes)
+        ->where('i.tipocatalogo', $tipo)
+        ->whereIn('i.Codprod', $codes)
+        ->select([
+            'i.Codprod as code',
+            'i.color as color',
+            'i.Descripcion as name',
+            'i.Precventa as price',
+        ])
+        ->get();
+
+    $inventarioMap = $inventario->keyBy(function ($row) {
+        return trim((string) $row->code) . '|' . trim((string) $row->color);
+    });
+
+    $inventarioByCode = $inventario
+        ->groupBy(function ($row) {
+            return trim((string) $row->code);
+        })
+        ->map(function ($rows) {
+            return $rows->first(function ($row) {
+                return trim((string) ($row->name ?? '')) !== '';
+            }) ?? $rows->first();
+        });
+
+    $productos = $catalogItems->map(function ($item) use ($inventarioMap, $inventarioByCode) {
+        $codeOriginal = trim((string) ($item->code ?? ''));
+        $colorOriginal = trim((string) ($item->color ?? ''));
+
+        $lookupCode = $codeOriginal;
+        $lookupColor = $colorOriginal;
+
+        if (str_contains($codeOriginal, '-')) {
+            $partes = explode('-', $codeOriginal, 2);
+            $lookupCode = trim((string) ($partes[0] ?? ''));
+            if ($lookupColor === '') {
+                $lookupColor = trim((string) ($partes[1] ?? ''));
+            }
+        }
+
+        $key = $lookupCode . '|' . $lookupColor;
+
+        $invExact = $inventarioMap->get($key);
+        $invByCode = $inventarioByCode->get($lookupCode);
+
+        $name = trim((string) ($invExact->name ?? ''));
+        if ($name === '') {
+            $name = trim((string) ($invByCode->name ?? ''));
+        }
+
+        $price = $invExact ? (float) ($invExact->price ?? 0) : 0;
+
+        return (object) [
+            'code' => $lookupCode,
+            'color' => $lookupColor,
+            'display_code' => $lookupCode . ($lookupColor !== '' ? '-' . $lookupColor : ''),
+            'name' => $name !== '' ? $name : 'Producto sin descripción',
+            'price' => $price,
+            'quantity' => (int) ($item->quantity ?? 1),
+            'page_number' => (int) ($item->page_number ?? 1),
+            'position' => (int) ($item->position ?? 1),
+        ];
+    });
+
+    $productosPorPagina = $productos
+        ->sortBy([
+            ['page_number', 'asc'],
+            ['position', 'asc'],
+        ])
+        ->groupBy(function ($item) {
+            return (int) $item->page_number;
+        })
+        ->map(function ($items) {
+            return $items->sortBy('position')->values();
+        });
+
+    $pagesRender = [];
+
+    foreach ($pages as $pagina) {
+        $pageNum = (int) $pagina->page_number;
+        $items = $productosPorPagina->get($pageNum, collect());
+
+        if ($items->count() > 0) {
+            $chunks = $items->chunk(9);
+
+            foreach ($chunks as $chunkIndex => $chunk) {
+                $pagesRender[] = [
+                    'pagina' => $pagina,
+                    'page_number_label' => $pageNum,
+                    'items' => $chunk->values(),
+                    'chunk_index' => $chunkIndex,
+                ];
+            }
+        } else {
+            $pagesRender[] = [
+                'pagina' => $pagina,
+                'page_number_label' => $pageNum,
+                'items' => collect(),
+                'chunk_index' => 0,
+            ];
+        }
+    }
+
+    return $pagesRender;
+}
+
+public function pagesBlock(Request $request, $slug)
+{
+    $catalog = Catalogo::where('slug', $slug)
+        ->where('is_public', true)
+        ->firstOrFail();
+
+    $offset = max(0, (int) $request->get('offset', 0));
+    $limit = max(1, min(12, (int) $request->get('limit', 6)));
+
+    $pagesRender = Cache::remember("catalogo_publico_{$catalog->id}", 300, function () use ($catalog) {
+        return $this->buildPublicPagesRender($catalog);
+    });
+
+    $slice = collect($pagesRender)->slice($offset, $limit)->values();
+
+    $html = '';
+    foreach ($slice as $renderPage) {
+        $html .= view('catalogo.parcial.pagina', compact('renderPage'))->render();
+    }
+
+    return response()->json([
+        'html' => $html,
+        'count' => $slice->count(),
+        'next_offset' => $offset + $slice->count(),
+        'has_more' => ($offset + $slice->count()) < collect($pagesRender)->count(),
     ]);
 }
 }

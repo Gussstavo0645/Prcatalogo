@@ -4,14 +4,12 @@
   $pagesRender = collect($pagesRender ?? []);
   $hasBlobPages = $pagesRender->count() > 0;
   $total = $hasBlobPages ? $pagesRender->count() : 0;
+  $initialTake = 6;
 @endphp
 
 @section('content')
-
-<div class="container py-3">
+<div class="container-fluid py-3 px-3">
   <h3 class="mb-1">{{ $catalog->title }}</h3>
-
-  
 
   @if(!empty($catalog->description))
     <p class="text-muted">{{ $catalog->description }}</p>
@@ -24,88 +22,15 @@
 </div>
 
 <div id="flipbook-wrap">
-  <div id="flipbook">
+  <div id="flipbook"
+       data-slug="{{ $catalog->slug }}"
+       data-total="{{ $total }}"
+       data-loaded="{{ min($initialTake, $total) }}">
 
-  {{-- si hay paginas blob --}}
-@if($hasBlobPages)
-
-  @foreach($pagesRender as $renderPage)
-    @php
-      $pagina = $renderPage['pagina'];
-      $pageNum = (int) $renderPage['page_number_label'];
-      $items = collect($renderPage['items'] ?? []);
-    @endphp
-
-    <div class="page {{ $pageNum === 1 ? 'page-cover' : '' }}"
-         data-density="{{ $pageNum === 1 ? 'hard' : 'soft' }}">
-
-      <div class="page-badge">Página {{ $pageNum }}</div>
-
-      {{-- imagen de pagina completa --}}
-      <img
-  src="{{ route('catalog_pages.image', $pagina->id) }}"
-  class="page-img"
-  alt="Página {{ $pageNum }}"
-  loading="lazy"
-  decoding="async"
->
-
-      {{-- productos encima de la hoja --}}
-    @if($items->count() > 0)
-  <div class="products-overlay">
-    @foreach($items as $prod)
-      @php
-        $img = route('catalog.product.thumb', [
-            'code' => $prod->code,
-            'color' => $prod->color
-        ]);
-
-        $imgLarge = route('catalog.product.image',[
-          'code' => $prod->code,
-          'color' => $prod->color
-        ]);
-      @endphp
-
-      <div class="product-mini">
-        <img
-          src="{{ $img }}"
-          alt="{{ $prod->name }}"
-          class="product-thumb"
-          data-large="{{ $imgLarge }}"
-          loading="lazy"
-          decoding="async"
-          style="cursor: zoom-in;"
-          onerror="this.onerror=null;this.src='https://via.placeholder.com/300x200?text=Sin+foto';"
-        />
-
-        <div class="p-code">Código: {{ $prod->display_code ?? $prod->code }}</div>
-        <div class="p-name">{{ $prod->name }}</div>
-        <div class="p-price">Q {{ number_format($prod->price, 2) }}</div>
-
-        <button
-          type="button"
-          class="badge bg-primary mt-1 border-0 w-100 p-2"
-          onclick="addToCart({
-            id: '{{ $prod->code }}-{{ $prod->color }}',
-            code: '{{ $prod->code }}',
-            color: '{{ $prod->color }}',
-            name: @js($prod->name),
-            price: {{ (float) $prod->price }},
-            qty: {{ (int) ($prod->quantity ?? 1) }},
-            img: '{{ $img }}'
-          })"
-        >
-          {{ $prod->quantity ?? 1 }} AGREGAR
-        </button>
-      </div>
-    @endforeach
-  </div>
-@endif
-
-    </div>
-  @endforeach
-
-    {{-- vacio --}}
+    @if($hasBlobPages)
+      @foreach($pagesRender->take($initialTake) as $renderPage)
+        @include('catalogo.parcial.pagina', ['renderPage' => $renderPage])
+      @endforeach
     @else
       <div class="page p-3 d-flex align-items-center justify-content-center">
         <div class="alert alert-info m-0">
@@ -115,13 +40,16 @@
     @endif
 
   </div>
-
+<button id="btnFullscreen" class="fullscreen-btn" onclick="toggleCatalogFullscreen()">
+  ⛶
+</button>
   <div class="flip-controls">
     <button id="prev" class="btn btn-outline-secondary">⟵ Anterior</button>
     <span id="page-indicator" class="text-muted small">1 / {{ max(1, $total) }}</span>
     <button id="next" class="btn btn-outline-secondary">Siguiente ⟶</button>
   </div>
 </div>
+
 
 {{-- ======= CARRITO UI ======= --}}
 <div id="cartFab" class="cart-fab" onclick="toggleCart()">

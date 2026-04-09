@@ -3,12 +3,12 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\support\str;
+use Illuminate\Support\Str;
 
 class Catalogo extends Model
 {
     protected $table = 'catalogs';
-    protected $fillable = ['title','slug','description','is_public','type','public_token'];
+    protected $fillable = ['title','slug','description','is_public','type','public_token','mesyope','tipo','tipocatalogo',];
 
     protected static function booted()
     {

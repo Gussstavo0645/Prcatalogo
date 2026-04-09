@@ -2,503 +2,489 @@
 
 @section('content')
 <style>
-  /* Panel flotante */
+  .section-card{
+    border:1px solid #e5e7eb;
+    border-radius:14px;
+    background:#fff;
+    box-shadow:0 4px 14px rgba(0,0,0,.04);
+    margin-bottom:20px;
+  }
+
+  .section-card .card-header{
+    background:#f8fafc;
+    border-bottom:1px solid #e5e7eb;
+    font-weight:700;
+    font-size:18px;
+    padding:14px 18px;
+    border-radius:14px 14px 0 0;
+  }
+
+  .section-card .card-body{
+    padding:18px;
+  }
+
+  .step-badge{
+    display:inline-block;
+    min-width:28px;
+    height:28px;
+    border-radius:50%;
+    background:#0d6efd;
+    color:#fff;
+    text-align:center;
+    line-height:28px;
+    font-size:14px;
+    margin-right:8px;
+  }
+
+  .disabled-block{
+    opacity:.65;
+  }
+
   #cartFloatWrap{
-    position: fixed;
-    top: 90px;
-    right: 16px;
-    width: 320px;
-    z-index: 9999;
+    position:sticky;
+    top:90px;
   }
 
-  /* En PC: deja espacio para que el panel NO aplaste el contenido */
-  @media (min-width: 1200px){
-    .container-fluid{
-      padding-right: 360px !important;
-    }
+  .summary-box{
+    background:#f8fafc;
+    border:1px solid #e5e7eb;
+    border-radius:12px;
+    padding:12px;
+    margin-bottom:10px;
   }
 
-  /* En móvil/tablet: que el panel se vuelva normal (no flotante) */
-  @media (max-width: 992px){
+  .summary-title{
+    font-size:13px;
+    color:#6b7280;
+    margin-bottom:4px;
+  }
+
+  .summary-value{
+    font-size:18px;
+    font-weight:700;
+  }
+
+  .product-card img{
+    height:220px;
+    object-fit:contain;
+    width:100%;
+    background:#fff;
+  }
+
+  @media (max-width: 991.98px){
     #cartFloatWrap{
-      position: static;
-      width: 100%;
-      max-width: 100%;
-      margin-top: 12px;
-    }
-
-    /* En móviles no reservamos espacio */
-    .container-fluid{
-      padding-right: 12px !important;
+      position:static;
+      top:auto;
     }
   }
 </style>
 
 <div class="container-fluid py-4">
 
-   @if($errors->any())
-
-     <div class="alert alert-danger">
-       <ul class="mb-0">
-        @foreach($errors->all() as $e) <li>{{ $e }}</li> @endforeach
-       </ul>
-      </div>
- 
-      @endif
+  @if($errors->any())
+    <div class="alert alert-danger">
+      <ul class="mb-0">
+        @foreach($errors->all() as $e)
+          <li>{{ $e }}</li>
+        @endforeach
+      </ul>
+    </div>
+  @endif
 
   @if(session('ok'))
-
     <div class="alert alert-success">{{ session('ok') }}</div>
   @endif
-  
 
-<div class="d-flex flex-column flex-xl-row align-items-start justify-content-between gap-3">
-  <div>
-    <h3>Nuevo catálogo</h3>
-    <p class="text-muted mb-2"></p>
+  @if(session('success'))
+    <div class="alert alert-success">{{ session('success') }}</div>
+  @endif
+
+  <div class="row g-4">
+    {{-- COLUMNA IZQUIERDA --}}
+    <div class="col-lg-9">
+
+      {{-- BLOQUE 1: CATÁLOGO --}}
+     
+            {{-- BLOQUE 1: CATÁLOGO --}}
+<div class="section-card">
+  <div class="card-header">
+    <span class="step-badge">1</span> Catálogo
   </div>
 
-  <form method="GET" action="{{ route('admin.catalogs.create') }}">
-  <input type="hidden" name="mesyope" value="{{ request('mesyope', $mes ?? '03/2026') }}">
-  <input type="hidden" name="tipocatalogo" value="{{ request('tipocatalogo', $tipo ?? 'N') }}">
+  <div class="card-body">
 
-  <label class="form-label fw-bold">Seleccionar catálogo para editar</label>
-  <div class="input-group">
-    <select name="catalog" class="form-select" onchange="this.form.submit()">
-      <option value="">-- Crear nuevo catálogo --</option>
-      @foreach($catalogs as $c)
-        <option value="{{ $c->id }}" {{ request('catalog') == $c->id ? 'selected' : '' }}>
-          {{ $c->title }}
-        </option>
-      @endforeach
-    </select>
+    <form method="GET" action="{{ route('admin.catalogs.create') }}" id="catalogHeaderForm">
+      <div class="row g-3 align-items-end">
 
-    @if(request('catalog'))
-      <a href="{{ route('admin.catalogs.create') }}" class="btn btn-secondary">Nuevo</a>
-    @endif
-  </div>
-</form>
+        <div class="col-md-4">
+  <label class="form-label fw-bold">Seleccionar catálogo</label>
+  <select name="catalog" class="form-select">
+    <option value="">-- Crear nuevo catálogo --</option>
+    @foreach($catalogs as $c)
+      <option value="{{ $c->id }}" {{ request('catalog') == $c->id ? 'selected' : '' }}>
+        {{ $c->title }}
+      </option>
+    @endforeach
+  </select>
+</div>
 
-    --
-  {{-- FILTRO DE CATÁLOGO (MES + TIPO) --}}
-<form method="GET" action="{{ route('admin.catalogs.create') }}" class="mb-3">
-  <input type="hidden" name="catalog" value="{{ request('catalog') }}">
+        <div class="col-md-2">
+  <label class="form-label fw-bold">Mes</label>
+  <input
+    type="text"
+    name="mesyope"
+    class="form-control"
+    value="{{ request('mesyope', $mes ?? '04/2026') }}"
+    placeholder="04/2026"
+  >
+</div>
 
-  <div class="row g-2 align-items-end">
-    <div class="col-md-3">
-      <label class="form-label">Mes del catálogo</label>
-      <input type="text"
-             name="mesyope"
-             class="form-control"
-             value="{{ request('mesyope', $mes ?? '03/2026') }}"
-             placeholder="Ej: 03/2026">
-    </div>
+        <div class="col-md-2">
+          <label class="form-label fw-bold">Tipo</label>
+          <select name="tipocatalogo" class="form-select">
+            <option value="N" {{ request('tipocatalogo', $tipo ?? 'N') == 'N' ? 'selected' : '' }}>N</option>
+            <option value="E" {{ request('tipocatalogo', $tipo ?? 'E') == 'E' ? 'selected' : '' }}>E</option>
+            <option value="F" {{ request('tipocatalogo', $tipo ?? 'F') == 'F' ? 'selected' : '' }}>F</option>
+            <option value="C" {{ request('tipocatalogo', $tipo ?? 'C') == 'C' ? 'selected' : '' }}>C</option>
+          </select>
+        </div>
 
-    <div class="col-md-3">
-      <label class="form-label">Tipo del catálogo</label>
-      <select name="tipocatalogo" class="form-select">
-        <option value="N" {{ request('tipocatalogo', $tipo ?? 'N') == 'N' ? 'selected' : '' }}>
-          N - Normal
-        </option>
-        <option value="E" {{ request('tipocatalogo', $tipo ?? '') == 'E' ? 'selected' : '' }}>
-          E - Revista éxito
-        </option>
-        <option value="F" {{ request('tipocatalogo', $tipo ?? '') == 'F' ? 'selected' : '' }}>
-          F - Promoción fuera de catálogo
-        </option>
-        <option value="C" {{ request('tipocatalogo', $tipo ?? '') == 'C' ? 'selected' : '' }}>
-          C - Catálogo / Insumos
-        </option>
-      </select>
-    </div>
+        <div class="col-md-2 d-grid">
+          <button type="submit" class="btn btn-primary">
+            Cargar productos
+          </button>
+        </div>
 
-    <div class="col-md-2 d-flex gap-2">
-      <button type="submit" class="btn btn-primary w-100">
-        Cargar productos
-      </button>
-    </div>
-  </div>
-</form>
+        <div class="col-md-2 d-grid">
+          @if(request('catalog'))
+            <a href="{{ route('admin.catalogs.create') }}" class="btn btn-secondary">
+              Nuevo
+            </a>
+          @endif
+        </div>
 
-@if($catalog)
-  <div class="mb-3">
-    <button type="button"
-            class="btn btn-outline-dark"
-            data-bs-toggle="modal"
-            data-bs-target="#pagesModal">
-      📄 Ver páginas
-    </button>
-  </div>
-@endif
+      </div>
+    </form>
+
+    <hr>
+
+    <form action="{{ route('admin.catalogs.store') }}" method="POST">
+      @csrf
+
+      <input type="hidden" name="mesyope" value="{{ request('mesyope', $mes ?? '04/2026') }}">
+      <input type="hidden" name="tipocatalogo" value="{{ request('tipocatalogo', $tipo ?? 'N') }}">
+
+      <div class="row g-3 align-items-end">
+        <div class="col-md-4">
+          <label class="form-label fw-bold">Título</label>
+          <input name="title" class="form-control" required>
+        </div>
+
+        <div class="col-md-4">
+          <label class="form-label fw-bold">Descripción</label>
+          <input name="description" class="form-control">
+        </div>
+
+        <div class="col-md-2">
+          <label class="form-label fw-bold">Tipo</label>
+          <select name="type" class="form-select">
+            <option value="N">N</option>
+            <option value="E">E</option>
+            <option value="F">F</option>
+            <option value="C">C</option>
+          </select>
+        </div>
+
+        <div class="col-md-2 d-grid">
+          <button class="btn btn-success">Crear</button>
+        </div>
+      </div>
+
+    </form>
+
   </div>
 </div>
-  </div>
-</div>
-  {{--  AQUÍ CIERRAS EL FLEX --}}
+      {{-- BLOQUE 2: PÁGINAS --}}
+      <div class="section-card {{ !$catalog ? 'disabled-block' : '' }}">
+        <div class="card-header">
+          <span class="step-badge">2</span> Páginas del catálogo
+        </div>
 
-  {{-- panel flotante arriba derecha --}}
-<div id="cartFloatWrap" style="min-width: 320px; max-width: 420px;">
-  <div class="card shadow">
-    <div class="card-header d-flex justify-content-between align-items-center">
-      <span class="fw-semibold">Productos en catálogo</span>
-      <span class="badge bg-primary" id="cartCount">0</span>
-    </div>
-
-    <div class="card-body p-2" id="cartPanel" style="max-height: 260px; overflow:auto;">
-      {{-- aquí JS va a pintar los productos --}}
-    </div>
-  </div>
-</div>
-                
-
-       {{-- from crear catalogo (incluye type) --}}
-       <form action="{{ route('admin.catalogs.store') }}" method="POST">
-       @csrf
-       <input type="hidden" name="mesyope" value="{{ request('mesyope', $mes ?? '03/2026') }}">
-<input type="hidden" name="tipocatalogo" value="{{ request('tipocatalogo', $tipo ?? 'N') }}">
-
-        <div class="row g-2 align-items-center">
-       <div class="col-md-4">
-        <input name="title" class="form-control" placeholder="Título" required value="{{ old('title') }}">
-       </div>
-
-         <div class="col-md-5">
-         <input name="description" class="form-control" placeholder="Descripción" value="{{ old('description') }}">
-         </div>
-
-         <div class="col-md-2">
-         <select name="type" class="form-select" required>
-          <option value="N" {{ old('type','N')=='N'?'selected':'' }}>N - Normal</option>
-          <option value="E" {{ old('type')=='E'?'selected':'' }}>E - Revista éxito</option>
-          <option value="F" {{ old('type')=='F'?'selected':'' }}>F - Promoción fuera de catálogo</option>
-          <option value="C" {{ old('type')=='C'?'selected':'' }}>C - Catálogo / Insumos</option>
-         </select>
-         </div>
-
-     <div class="col-md-1 form-check">
-  <input type="checkbox"
-         class="form-check-input"
-         name="is_public"
-         id="is_public"
-         {{ old('is_public', true) ? 'checked' : '' }}>
-  <label for="is_public" class="form-check-label">Público</label>
-</div>
-    </div>
-
-    <button class="btn btn-primary mt-3">Crear</button>
-  </form>
-
-  {{-- SUBIR PAGINAS --}}
-  {{-- SUBIR PAGINAS --}}
-<h4>Subir páginas</h4>
-
-@if($catalog)
+        <div class="card-body">
+        @if($catalog)
   <form action="{{ route('admin.catalogs.pages.store', $catalog) }}"
         method="POST"
         enctype="multipart/form-data">
     @csrf
 
-    <div class="mb-2">
-      <input type="file" name="pages[]" class="form-control" multiple>
-      <small class="text-muted">Sube las páginas en orden (page-001, page-002...).</small>
-    </div>
+    <div class="row g-3 align-items-end">
+      <div class="col-md-8">
+        <label class="form-label fw-bold">Subir páginas</label>
+        <input type="file" name="pages[]" class="form-control" multiple>
+        <small class="text-muted">Sube las páginas en orden (page-001, page-002...).</small>
+      </div>
 
-    <button type="submit" class="btn btn-primary">Guardar</button>
+      <div class="col-md-2 d-grid">
+        <button type="submit" class="btn btn-primary">Guardar</button>
+      </div>
+
+      <div class="col-md-2 d-grid">
+        <button type="button"
+                class="btn btn-outline-dark"
+                data-bs-toggle="modal"
+                data-bs-target="#pagesModal">
+          Ver páginas
+        </button>
+      </div>
+    </div>
   </form>
 @else
-  <div class="alert alert-info">
-    Primero crea un catálogo (arriba) y luego podrás subir sus páginas aquí.
+  <div class="alert alert-info mb-0">
+    Primero crea un catálogo y luego podrás subir sus páginas aquí.
   </div>
-@endif
- <h4 class="mb-3">Catálogo armado</h4>
+@endif  
+        </div>
+      </div>
 
-@if(!$catalog)
-  <div class="alert alert-info">
-    Crea un catálogo arriba para empezar a armarlo con productos.
-  </div>
-@endif
+      {{-- BLOQUE 3: PRODUCTOS --}}
+      <div class="section-card {{ !$catalog ? 'disabled-block' : '' }}">
+        <div class="card-header">
+          <span class="step-badge">3</span> Buscar y agregar productos
+        </div>
 
-  <hr>
+        <div class="card-body">
+          @if(!$catalog)
+            <div class="alert alert-info mb-0">
+              Primero crea o selecciona un catálogo para agregar productos.
+            </div>
+          @else
 
-  {{-- PRODUCTOS DISPONIBLES --}}
-  <h4 class="mb-3">Productos</h4>
-
-
-@if($catalog)
-<div id="bulkAddForm">
-  <div class="card mb-3 shadow-sm">
-    <div class="card-body">
-
-     <form method="GET" action="{{ route('admin.catalogs.create') }}" class="mb-3">
+            {{-- FILTRO GENERAL --}}
+            {{-- FILTRO GENERAL --}}
+<form method="GET"
+      action="{{ route('admin.catalogs.products.search') }}"
+      class="mb-4"
+      id="productsFilterForm">
   <input type="hidden" name="catalog" value="{{ request('catalog') }}">
-  <input type="hidden" name="mesyope" value="{{ request('mesyope', $mes ?? '03/2026') }}">
-  <input type="hidden" name="tipocatalogo" value="{{ request('tipocatalogo', $tipo ?? 'N') }}">
+  <input type="hidden" name="mesyope" value="{{ request('mesyope', $mes ?? '04/2026') }}">
+<input type="hidden" name="tipocatalogo" value="{{ request('tipocatalogo', $tipo ?? 'N') }}">
 
-  <div class="row g-2 mt-2">
-    <div class="col-md-3">
+  <div class="row g-3 align-items-end">
+   
+
+    
+
+    <div class="col-md-2">
       <label class="form-label fw-bold">Filtrar por página</label>
-      <input type="number"
-             name="filter_page"
-             class="form-control"
-             min="1"
-             value="{{ request('filter_page', $pageFilter ?? '') }}"
-             placeholder="Ej: 56">
+      <input
+        type="number"
+        name="filter_page"
+        class="form-control"
+        min="1"
+        value="{{ request('filter_page', $pageFilter ?? '') }}"
+        placeholder="27"
+      >
     </div>
 
-    <div class="col-md-9 d-flex align-items-end gap-2">
-      <button type="submit" class="btn btn-outline-dark btn-sm">
-        Filtrar
-      </button>
+    <div class="col-md-2 d-grid">
+      <button type="submit" class="btn btn-primary">Buscar productos</button>
+    </div>
 
-      <a href="{{ route('admin.catalogs.create', [
-          'catalog' => request('catalog'),
-          'mesyope' => request('mesyope', $mes ?? '03/2026'),
-          'tipocatalogo' => request('tipocatalogo', $tipo ?? 'N')
-      ]) }}" class="btn btn-outline-secondary btn-sm">
-        Limpiar filtro
-      </a>
+    <div class="col-md-2 d-grid">
+     <button type="button" class="btn btn-outline-secondary" id="clearProductsFilter">
+  Limpiar filtro
+</button>
     </div>
   </div>
 </form>
 
-      {{-- BULK ADD --}}
-      <div class="row g-2 align-items-end">
-        <div class="col-md-3">
-          <label class="form-label fw-bold">Página</label>
-          <input type="number" name="page_number" id="bulkPageNumber" class="form-control" min="1" value="1" required>
-        </div>
-
-        <div class="col-md-3">
-          <label class="form-label fw-bold">Cantidad</label>
-          <input type="number" name="quantity" id="bulkQuantity" class="form-control" min="1" value="1" required>
-        </div>
-
-        <div class="col-md-3">
-          <label class="form-label fw-bold">Seleccionados</label>
-          <input type="text" id="selectedCount" class="form-control" value="0 productos" readonly>
-        </div>
-
-        <div class="col-md-3 d-grid">
-          <button type="button" class="btn btn-success" id="bulkAddBtn">
-            Agregar seleccionados
-          </button>
-        </div>
-      </div>
-
-      <div class="mt-3 d-flex flex-wrap gap-2">
-        <button type="button" class="btn btn-outline-primary btn-sm" id="selectAllBtn">
-          Seleccionar todos
-        </button>
-
-        <button type="button" class="btn btn-outline-secondary btn-sm" id="unselectAllBtn">
-          Quitar selección
-        </button>
-      </div>
-
-    </div>
-  </div>
-</div>
-@endif
-
-  @if($products->isEmpty())
-    <div class="alert alert-info">Aún no tienes productos registrados.</div>
-  @else
-    <div class="row g-3" id="availableProducts">
-
-  @foreach($products as $p)
-    @php
-    $prod = $p instanceof \Illuminate\Support\Collection ? $p->first() : $p;
-    @endphp
-    @continue(!$prod)
-     
-
-   <div class="col-6 col-md-3 product-item"
-     id="product-card-{{$prod->code}}-{{$prod->color}}"
-     data-source-page="{{ (int)($prod->source_page ?? $prod->debug_page ?? 1) }}">
-   <div class="card h-100">
-
-    @if($catalog)
-      <div class="text-center p-2 border-bottom">
-        <input 
-  type="checkbox"
-  class="form-check-input product-check"
-  data-code="{{ trim($prod->code) }}"
-  data-color="{{ trim($prod->color) }}"
-  data-key="{{ trim($prod->code) }}-{{ trim($prod->color) }}"
-  style="transform: scale(1.2);"
->
-      </div>
-    @endif
-
-      @php
-        $imgUrl = !empty($prod->color)
-            ? route('catalog.product.image', ['code' => $prod->code, 'color' => $prod->color])
-            : route('catalog.product.image', ['code' => $prod->code]);
-      @endphp
-
-      <img src="{{ $imgUrl }}"
-           class="card-img-top bg-white"
-           style="height:220px; object-fit:contain; width:100%;"
-           alt="{{ $prod->name }}"
-           onerror="this.onerror=null;this.src='https://via.placeholder.com/220x220?text=Sin+imagen';">
-
-      <div class="card-body d-flex flex-column">
-   <div class="fw-semibold p-name">{{ $prod->name }}</div>
-
-  <div class="small text-danger">
-  debug_page: {{ $prod->debug_page ?? 'NULL' }} |
-  source_page: {{ $prod->source_page ?? 'NULL' }} |
-  filtro: {{ (int)($prod->source_page ?? $prod->debug_page ?? 1) }}
-</div>
-
-   <div class="text-muted small p-price">Q {{ number_format($prod->price,2) }}</div>
-
-    <div class="p-qty mt-auto">
-    <span class="badge bg-primary w-100 text-center">1 u</span>
-   </div>
-          <div class="d-flex gap-2 mt-2">
-
-             {{-- CANTIDAD --}}
-        <input type="number" min="1" value="1"
-               class="form-control form-control-sm"
-               style="max-width:90px"
-               id="qty-{{ trim($prod->code) }}-{{ trim($prod->color) }}">
-
-        {{-- PÁGINA AUTOMÁTICA DESDE INVENTARIO --}}
-        <input type="number" min="1"
-               value="{{ $prod->source_page ?? 1 }}"
-               class="form-control form-control-sm"
-               style="max-width:90px"
-               id="page-{{ trim($prod->code) }}-{{ trim($prod->color) }}">
-
-
-             <button type="button"
-    class="btn btn-primary btn-sm ms-auto"
-    data-code="{{ $prod->code }}"
-    data-color="{{ $prod->color }}"
-    data-key="{{ trim($prod->code) }}-{{ trim($prod->color) }}"
-        onclick="addToCatalog(this, {{ $catalog?->id ?? 'null' }})"
-        {{ $catalog ? '' : 'disabled' }}>
-   Agregar
-   </button>
-
-
-    <button type="button"
-    class="btn btn-danger btn-sm"
-    onclick="deleteProduct('{{$prod->code}}','{{$prod->color}}')">
-    Eliminar
-    </button>
-
-          </div>
-             @if(!$catalog)
-             <div class="text-muted small mt-2">
-                 Primero crea un catálogo para poder agregar productos.
-                 </div>
-              @endif
-                     </div>
-                                     </div>
-                            </div>
-   @endforeach
-
-   </div>
-
-@if($catalog)
-  </div>
-@endif
-
-<div class="mt-3">
-  {{ $products->appends(request()->query())->links() }}
-</div>
-@endif
-
-    <hr class="my-4">
-
-   {{-- Catalogo armado --}}
-
-   @if(!$catalog)
-  
-   @else
-  
-<hr>
-@endif
-@if($catalog)
-<div class="modal fade" id="pagesModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-xl modal-dialog-scrollable">
-    <div class="modal-content">
-
-      <div class="modal-header">
-        <h5 class="modal-title">Páginas del catálogo: {{ $catalog->title }}</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
-      </div>
-
-      <div class="modal-body">
-        @if($catalog->paginas->count())
-          <div class="row g-3">
-            @foreach($catalog->paginas->sortBy('page_number') as $pagina)
-              <div class="col-6 col-md-4 col-lg-3">
-                <div class="card h-100 shadow-sm">
-                  <img src="{{ route('catalog_pages.image', $pagina->id) }}"
-                       class="card-img-top bg-white"
-                       style="height:260px; object-fit:contain;"
-                       alt="Página {{ $pagina->page_number }}">
-
-                  <div class="card-body p-2">
-                    <div class="fw-semibold text-center mb-2">
-                      Página {{ $pagina->page_number }}
+            {{-- BULK ADD --}}
+            <div id="bulkAddForm">
+              <div class="card mb-4 shadow-sm">
+                <div class="card-body">
+                  <div class="row g-3 align-items-end">
+                    <div class="col-md-3">
+                      <label class="form-label fw-bold">Página destino</label>
+                      <input type="number" id="bulkPageNumber" class="form-control" min="1" value="1" required>
                     </div>
 
-                    <form action="{{ route('admin.catalogs.paginas.destroy', [$catalog->id, $pagina->id]) }}"
-                          method="POST"
-                          onsubmit="return confirm('¿Eliminar esta página? También se eliminarán los productos asignados a esta página.');">
-                      @csrf
-                      @method('DELETE')
-                      <button type="submit" class="btn btn-danger btn-sm w-100">
-                        🗑 Eliminar página
+                    <div class="col-md-3">
+                      <label class="form-label fw-bold">Cantidad</label>
+                      <input type="number" id="bulkQuantity" class="form-control" min="1" value="1" required>
+                    </div>
+
+                    <div class="col-md-3">
+                      <label class="form-label fw-bold">Seleccionados</label>
+                      <input type="text" id="selectedCount" class="form-control" value="0 productos" readonly>
+                    </div>
+
+                    <div class="col-md-3 d-grid">
+                      <button type="button" class="btn btn-success" id="bulkAddBtn">
+                        Agregar seleccionados
                       </button>
-                    </form>
+                    </div>
+                  </div>
+
+                  <div class="mt-3 d-flex flex-wrap gap-2">
+                    <button type="button" class="btn btn-outline-primary btn-sm" id="selectAllBtn">
+                      Seleccionar todos
+                    </button>
+
+                    <button type="button" class="btn btn-outline-secondary btn-sm" id="unselectAllBtn">
+                      Quitar selección
+                    </button>
                   </div>
                 </div>
               </div>
-            @endforeach
-          </div>
-        @else
-          <div class="alert alert-info mb-0">
-            Este catálogo aún no tiene páginas.
-          </div>
-        @endif
+            </div>
+
+            {{-- LISTADO PRODUCTOS --}}
+           <div id="productsSection">
+  @include('admin.catalogo.parcial.products_list', [
+      'products' => $products,
+      'catalog' => $catalog,
+      'mes' => $mes,
+      'tipo' => $tipo,
+      'pageFilter' => $pageFilter,
+  ])
+</div>
+          @endif
+        </div>
       </div>
 
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
-      </div>
+      {{-- BLOQUE 4: LINKS --}}
+      @if($catalog)
+        <div class="section-card">
+          <div class="card-header">
+            Enlaces del catálogo
+          </div>
+          <div class="card-body">
+            <div class="alert alert-info mb-0">
+              <div>
+                <strong>🔵 Vista interna:</strong><br>
+                <a href="{{ url('/catalogos/'.$catalog->slug) }}" target="_blank">
+                  {{ url('/catalogos/'.$catalog->slug) }}
+                </a>
+              </div>
+
+              <hr>
+
+              <div>
+                <strong>🟢 Vista pública:</strong><br>
+                <a href="{{ url('/c/'.$catalog->slug) }}" target="_blank">
+                  {{ url('/c/'.$catalog->slug) }}
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      @endif
 
     </div>
+
+    {{-- COLUMNA DERECHA --}}
+    <div class="col-lg-3">
+      <div id="cartFloatWrap">
+        <div class="section-card">
+          <div class="card-header d-flex justify-content-between align-items-center">
+            <span><span class="step-badge">4</span> Resumen</span>
+            <span class="badge bg-primary" id="cartCount">0</span>
+          </div>
+
+          <div class="card-body">
+            <div class="summary-box">
+              <div class="summary-title">Catálogo actual</div>
+              <div class="summary-value" style="font-size:16px;">
+                {{ $catalog->title ?? 'Sin seleccionar' }}
+              </div>
+            </div>
+
+            <div class="summary-box">
+              <div class="summary-title">Productos agregados</div>
+              <div class="summary-value">
+                {{ isset($catalogProducts) ? $catalogProducts->count() : 0 }}
+              </div>
+            </div>
+
+            <div class="summary-box">
+              <div class="summary-title">Mes</div>
+              <div class="summary-value" style="font-size:16px;">
+                {{ request('mesyope', $mes ?? '04/2026') }}
+              </div>
+            </div>
+
+            <div class="summary-box">
+              <div class="summary-title">Tipo</div>
+              <div class="summary-value" style="font-size:16px;">
+                {{ request('tipocatalogo', $tipo ?? 'N') }}
+              </div>
+            </div>
+
+            <hr>
+
+            <div id="cartPanel" style="max-height: 360px; overflow:auto;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
+
+  {{-- MODAL PÁGINAS --}}
+  @if($catalog)
+    <div class="modal fade" id="pagesModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Páginas del catálogo: {{ $catalog->title }}</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+          </div>
+
+          <div class="modal-body">
+            @if($catalog->paginas->count())
+              <div class="row g-3">
+                @foreach($catalog->paginas->sortBy('page_number') as $pagina)
+                  <div class="col-6 col-md-4 col-lg-3">
+                    <div class="card h-100 shadow-sm">
+                      <img src="{{ route('catalog_pages.image', $pagina->id) }}"
+                           class="card-img-top bg-white"
+                           style="height:260px; object-fit:contain;"
+                           alt="Página {{ $pagina->page_number }}">
+
+                      <div class="card-body p-2">
+                        <div class="fw-semibold text-center mb-2">
+                          Página {{ $pagina->page_number }}
+                        </div>
+
+                        <form action="{{ route('admin.catalogs.paginas.destroy', [$catalog->id, $pagina->id]) }}"
+                              method="POST"
+                              onsubmit="return confirm('¿Eliminar esta página? También se eliminarán los productos asignados a esta página.');">
+                          @csrf
+                          @method('DELETE')
+                          <button type="submit" class="btn btn-danger btn-sm w-100">
+                            🗑 Eliminar página
+                          </button>
+                        </form>
+                      </div>
+                    </div>
+                  </div>
+                @endforeach
+              </div>
+            @else
+              <div class="alert alert-info mb-0">
+                Este catálogo aún no tiene páginas.
+              </div>
+            @endif
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  @endif
+
 </div>
-@endif
-
-@if($catalog)
-<div class="alert alert-info">
-
-  <div>
-    <strong>🔵 Vista interna:</strong><br>
-    <a href="{{ url('/catalogos/'.$catalog->slug) }}" target="_blank">
-      {{ url('/catalogos/'.$catalog->slug) }}
-    </a>
-  </div>
-
-  <hr>
-
-  <div>
-    <strong>🟢 Vista pública:</strong><br>
-    <a href="{{ url('/c/'.$catalog->slug) }}" target="_blank">
-      {{ url('/c/'.$catalog->slug) }}
-    </a>
-  </div>
-
-</div>
-@endif
-
 @endsection
 
 @section('scripts')
@@ -527,8 +513,9 @@
 <script>
   window.__CART_ITEMS__ = @json($cartItems);
   window.__CATALOG_ID__ = @json($catalog?->id);
- window.__PRODUCT_IMG_BASE__ = "{{ url('/catalogo/producto-imagen') }}";
+  window.__PRODUCT_IMG_BASE__ = "{{ url('/catalogo/producto-thumb') }}";
 </script>
+
 <script>
 function formatPrice(q){
   return Number(q).toLocaleString('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -546,23 +533,23 @@ function renderCartRow(product, qty, catalogId, pageNumber){
   const color = (product.color || '').trim();
   const key = `${code}-${color}-${pageNumber}`;
 
-  let imgUrl = 'https://via.placeholder.com/44x44?text=Sin+foto';
+ let imgUrl = 'https://via.placeholder.com/44x44?text=Sin+foto';
 
-  if(code){
-    imgUrl = color
-      ? `${window.__PRODUCT_IMG_BASE__}/${encodeURIComponent(code)}/${encodeURIComponent(color)}`
-      : `${window.__PRODUCT_IMG_BASE__}/${encodeURIComponent(code)}`;
-  }
+if(code){
+  imgUrl = color
+    ? `${window.__PRODUCT_IMG_BASE__}/${encodeURIComponent(code)}/${encodeURIComponent(color)}?v=${code}${color}`
+    : `${window.__PRODUCT_IMG_BASE__}/${encodeURIComponent(code)}?v=${code}`;
+}
 
   return `
     <div class="d-flex align-items-center gap-2 border rounded p-2 mb-2"
          data-cart-item="1"
          id="cart-item-${key}">
-      <img src="${imgUrl}"
-           style="width:44px;height:44px;object-fit:contain;border-radius:8px;background:#fff;"
-           alt=""
-           onerror="this.onerror=null;this.src='https://via.placeholder.com/44x44?text=Sin+foto'">
-
+     <img data-src="${imgUrl}"
+     class="hover-img"
+     style="width:44px;height:44px;object-fit:contain;border-radius:8px;background:#fff;cursor:pointer;"
+     alt=""
+     onerror="this.onerror=null;this.src='https://via.placeholder.com/44x44?text=Sin+foto'">
       <div class="flex-grow-1">
         <div class="fw-semibold small">${product.name ?? 'Producto no encontrado'}</div>
         <div class="text-muted small">Q ${formatPrice(product.price ?? 0)}</div>
@@ -574,48 +561,6 @@ function renderCartRow(product, qty, catalogId, pageNumber){
       <button type="button"
         class="btn btn-outline-danger btn-sm"
         onclick="removeFromCatalog('${code}', '${color}', ${catalogId}, ${pageNumber})">✕</button>
-    </div>
-  `;
-}
-
-function renderGridCard(product, qty, catalogId, pageNumber){
-  const code = (product.code || '').trim();
-  const color = (product.color || '').trim();
-  const key = `${code}-${color}-${pageNumber}`;
-
-  let imgUrl = 'https://via.placeholder.com/220x220?text=Sin+imagen';
-
-  if(code){
-    imgUrl = color
-      ? `${window.__PRODUCT_IMG_BASE__}/${encodeURIComponent(code)}/${encodeURIComponent(color)}`
-      : `${window.__PRODUCT_IMG_BASE__}/${encodeURIComponent(code)}`;
-  }
-
-  return `
-    <div class="col-6 col-md-3" id="cat-item-${key}">
-      <div class="card h-100">
-        <img src="${imgUrl}"
-             class="card-img-top bg-white"
-             style="height:220px;object-fit:contain;width:100%;"
-             alt=""
-             onerror="this.onerror=null;this.src='https://via.placeholder.com/220x220?text=Sin+imagen';">
-
-        <div class="card-body">
-          <div class="fw-semibold">${product.name}</div>
-          <div class="text-muted small">Q ${formatPrice(product.price)}</div>
-          <div class="text-muted small">Pág: ${pageNumber}</div>
-
-          <div class="d-flex justify-content-between align-items-center mt-2">
-            <span class="badge bg-secondary" id="grid-qty-${key}">${qty} u</span>
-
-            <button type="button"
-              class="btn btn-outline-danger btn-sm"
-              onclick="removeFromCatalog('${code}', '${color}', ${catalogId}, ${pageNumber})">
-              Quitar
-            </button>
-          </div>
-        </div>
-      </div>
     </div>
   `;
 }
@@ -634,10 +579,9 @@ async function addToCatalog(btn, catalogId){
       return;
     }
 
-  const code = (btn?.dataset.code || '').trim();
-const color = (btn?.dataset.color || '').trim();
-const keyBase = (btn?.dataset.key || `${code}-${color}`).trim();
-
+    const code = (btn?.dataset.code || '').trim();
+    const color = (btn?.dataset.color || '').trim();
+    const keyBase = (btn?.dataset.key || `${code}-${color}`).trim();
 
     if(!code){
       alert('El producto no tiene código.');
@@ -645,11 +589,10 @@ const keyBase = (btn?.dataset.key || `${code}-${color}`).trim();
     }
 
     const qtyInput = document.getElementById(`qty-${keyBase}`);
-const pageInput = document.getElementById(`page-${keyBase}`);
+    const pageInput = document.getElementById(`page-${keyBase}`);
 
-const qty = qtyInput ? Number(qtyInput.value || 1) : 1;
-const pageNumber = pageInput ? Number(pageInput.value || 1) : 1;
-
+    const qty = qtyInput ? Number(qtyInput.value || 1) : 1;
+    const pageNumber = pageInput ? Number(pageInput.value || 1) : 1;
 
     const res = await fetch(`/admin/catalogos/${catalogId}/products`, {
       method: 'POST',
@@ -692,7 +635,6 @@ const pageNumber = pageInput ? Number(pageInput.value || 1) : 1;
 
     const key = `${data.product.code}-${data.product.color}-${data.page_number}`;
 
-    // PANEL DERECHO
     const panel = document.getElementById('cartPanel');
     if(panel){
       document.getElementById('cartEmpty')?.remove();
@@ -710,8 +652,6 @@ const pageNumber = pageInput ? Number(pageInput.value || 1) : 1;
     }
 
     updateCartCount();
-
-   
 
   } catch (e) {
     console.error(e);
@@ -752,7 +692,7 @@ async function removeFromCatalog(code, color, catalogId, pageNumber = 1){
     }
 
     const key = `${code}-${color}-${pageNumber}`;
-
+    document.getElementById(`cart-item-${key}`)?.remove();
 
     const panel = document.getElementById('cartPanel');
     if(panel && !panel.querySelector('[data-cart-item="1"]')){
@@ -762,6 +702,8 @@ async function removeFromCatalog(code, color, catalogId, pageNumber = 1){
         </div>
       `;
     }
+
+    updateCartCount();
 
   } catch (e) {
     console.error(e);
@@ -797,7 +739,7 @@ document.addEventListener('DOMContentLoaded', () => {
 </script>
 
 <script>
-document.addEventListener('DOMContentLoaded', function () {
+function initBulkActions() {
   const checks = document.querySelectorAll('.product-check');
   const selectedCount = document.getElementById('selectedCount');
   const selectAllBtn = document.getElementById('selectAllBtn');
@@ -816,17 +758,17 @@ document.addEventListener('DOMContentLoaded', function () {
   });
 
   if (selectAllBtn) {
-    selectAllBtn.addEventListener('click', function () {
-      checks.forEach(chk => chk.checked = true);
+    selectAllBtn.onclick = function () {
+      document.querySelectorAll('.product-check').forEach(chk => chk.checked = true);
       updateSelectedCount();
-    });
+    };
   }
 
   if (unselectAllBtn) {
-    unselectAllBtn.addEventListener('click', function () {
-      checks.forEach(chk => chk.checked = false);
+    unselectAllBtn.onclick = function () {
+      document.querySelectorAll('.product-check').forEach(chk => chk.checked = false);
       updateSelectedCount();
-    });
+    };
   }
 
   async function bulkAddSelected() {
@@ -908,8 +850,8 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         const itemKey = `${data.product.code}-${data.product.color}-${data.page_number}`;
-
         const panel = document.getElementById('cartPanel');
+
         if (panel) {
           document.getElementById('cartEmpty')?.remove();
 
@@ -925,7 +867,6 @@ document.addEventListener('DOMContentLoaded', function () {
           }
         }
 
-        // opcional: actualizar también los inputs individuales visualmente
         const qtyBox = document.getElementById(`qty-${key}`);
         const pageBox = document.getElementById(`page-${key}`);
         if (qtyBox) qtyBox.value = quantity;
@@ -958,12 +899,120 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   if (bulkAddBtn) {
-    bulkAddBtn.addEventListener('click', bulkAddSelected);
+    bulkAddBtn.onclick = bulkAddSelected;
   }
 
   updateSelectedCount();
+}
+
+document.addEventListener('DOMContentLoaded', initBulkActions);
+</script>
+
+<script>
+async function loadProductsSection(url) {
+  const container = document.getElementById('productsSection');
+  if (!container) return;
+
+  try {
+    container.style.opacity = '0.5';
+    container.innerHTML = '<div class="alert alert-info">Cargando productos...</div>';
+
+    const res = await fetch(url, {
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest'
+      }
+    });
+
+    const html = await res.text();
+    container.innerHTML = html;
+
+    initBulkActions();
+
+  } catch (err) {
+    console.error(err);
+    container.innerHTML = '<div class="alert alert-danger">Error al cargar productos</div>';
+  } finally {
+    container.style.opacity = '1';
+  }
+}
+
+
+document.addEventListener('click', function(e){
+  const link = e.target.closest('.pagination a');
+  if(!link) return;
+
+  e.preventDefault();
+  loadProductsSection(link.href);
+});
+
+</script>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const form = document.getElementById('catalogHeaderForm');
+  if (!form) return;
+
+  form.querySelectorAll('select').forEach(select => {
+    select.addEventListener('change', () => {
+      form.submit();
+    });
+  });
 });
 </script>
 
+<script>
+document.addEventListener('click', function(e){
+  const btn = e.target.closest('#clearProductsFilter');
+  if(!btn) return;
 
+  const form = document.getElementById('productsFilterForm');
+  if(!form) return;
+
+  const pageInput = form.querySelector('input[name="filter_page"]');
+  if(pageInput) pageInput.value = '';
+
+  const url = new URL(form.action, window.location.origin);
+  const formData = new FormData(form);
+
+  for (const [key, value] of formData.entries()) {
+    if (value !== '') {
+      url.searchParams.set(key, value);
+    }
+  }
+
+  loadProductsSection(url.toString());
+});
+</script>
+
+<script>
+document.addEventListener('submit', function(e){
+  const form = e.target.closest('#productsFilterForm');
+  if (!form) return;
+
+  e.preventDefault();
+
+  const url = new URL(form.action, window.location.origin);
+  const formData = new FormData(form);
+
+  for (const [key, value] of formData.entries()) {
+    if (value !== null && value !== '') {
+      url.searchParams.set(key, value);
+    }
+  }
+
+  loadProductsSection(url.toString());
+});
+</script>
+
+<script>
+document.addEventListener('mouseover', function(e){
+  const img = e.target.closest('.hover-img');
+  if(!img) return;
+
+  if (!img.dataset.loaded) {
+    img.src = img.dataset.src;
+    img.dataset.loaded = '1';
+  }
+});
+</script>
 @endsection
