@@ -44,49 +44,113 @@ class PedidoPublicController extends Controller
 
                 $total = 0;
 
-                foreach ($data['items'] as $it) {
-                    $code  = trim((string) $it['code']);
-                    $color = trim((string) ($it['color'] ?? ''));
-                    $qty   = (int) $it['quantity'];
+             foreach ($data['items'] as $it) {
+    $code  = trim((string) $it['code']);
+    $color = trim((string) ($it['color'] ?? ''));
+    $qty   = (int) $it['quantity'];
 
-                    $query = DB::connection('admin_ml')
-                        ->table('inventario as i')
-                        ->where('i.Codprod', $code)
-                        ->where('i.mesyope', '04/2026')
-                        ->where('i.tipocatalogo', 'N');
+    // 1) Buscar si el producto comprado es un combo local
+    $combo = DB::table('catalog_combos')
+        ->where('code', $code)
+        ->where('color', $color)
+        ->first();
 
-                    if ($color !== '') {
-                        $query->where('i.color', $color);
-                    }
+    // 2) Si ES combo, explotarlo en sus componentes
+    if ($combo) {
+        $componentes = DB::table('catalog_combo_items')
+            ->where('combo_id', $combo->id)
+            ->get();
 
-                    $producto = $query->select([
-                        'i.Codprod as code',
-                        'i.color as color',
-                        'i.Descripcion as name',
-                        'i.Precventa as price',
-                    ])->first();
+        if ($componentes->isEmpty()) {
+            return response()->json([
+                'message' => "El combo {$code}-{$color} no tiene productos configurados."
+            ], 422);
+        }
 
-                    if (!$producto) {
-                        return response()->json([
-                            'message' => "No se encontró el producto {$code} con color {$color}."
-                        ], 422);
-                    }
+        // El total del pedido se sigue calculando con el precio del combo
+        $subtotalCombo = (float) $combo->price * $qty;
+        $total += $subtotalCombo;
 
-                    $price = (float) $producto->price;
-                    $subtotal = $price * $qty;
+        foreach ($componentes as $comp) {
+            $compCode  = trim((string) $comp->product_code);
+            $compColor = trim((string) ($comp->product_color ?? ''));
 
-                    PedidoItem::create([
-                        'pedidos_id'    => $pedido->id,
-                        'product_code'  => $producto->code,
-                        'product_color' => $producto->color,
-                        'product_name'  => $producto->name,
-                        'quantity'      => $qty,
-                        'price'         => $price,
-                        'subtotal'      => $subtotal,
-                    ]);
+            $queryComp = DB::connection('admin_ml')
+                ->table('inventario as i')
+                ->where('i.Codprod', $compCode)
+                ->where('i.mesyope', '04/2026')
+                ->where('i.tipocatalogo', 'N');
 
-                    $total += $subtotal;
-                }
+            if ($compColor !== '') {
+                $queryComp->where('i.color', $compColor);
+            }
+
+            $productoComp = $queryComp->select([
+                'i.Codprod as code',
+                'i.color as color',
+                'i.Descripcion as name',
+                'i.Precventa as price',
+            ])->first();
+
+            if (!$productoComp) {
+                return response()->json([
+                    'message' => "No se encontró el producto interno {$compCode} con color {$compColor} del combo {$code}-{$color}."
+                ], 422);
+            }
+
+            PedidoItem::create([
+                'pedidos_id'    => $pedido->id,
+                'product_code'  => $productoComp->code,
+                'product_color' => $productoComp->color,
+                'product_name'  => $productoComp->name,
+                'quantity'      => ((int) $comp->quantity) * $qty,
+                'price'         => 0,
+                'subtotal'      => 0,
+            ]);
+        }
+
+        continue;
+    }
+
+    // 3) Si NO es combo, guardar producto normal
+    $query = DB::connection('admin_ml')
+        ->table('inventario as i')
+        ->where('i.Codprod', $code)
+        ->where('i.mesyope', '04/2026')
+        ->where('i.tipocatalogo', 'N');
+
+    if ($color !== '') {
+        $query->where('i.color', $color);
+    }
+
+    $producto = $query->select([
+        'i.Codprod as code',
+        'i.color as color',
+        'i.Descripcion as name',
+        'i.Precventa as price',
+    ])->first();
+
+    if (!$producto) {
+        return response()->json([
+            'message' => "No se encontró el producto {$code} con color {$color}."
+        ], 422);
+    }
+
+    $price = (float) $producto->price;
+    $subtotal = $price * $qty;
+
+    PedidoItem::create([
+        'pedidos_id'    => $pedido->id,
+        'product_code'  => $producto->code,
+        'product_color' => $producto->color,
+        'product_name'  => $producto->name,
+        'quantity'      => $qty,
+        'price'         => $price,
+        'subtotal'      => $subtotal,
+    ]);
+
+    $total += $subtotal;
+}
 
                 $pedido->update(['total' => $total]);
 

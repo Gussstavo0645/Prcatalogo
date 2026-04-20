@@ -42,11 +42,17 @@
           <div class="card-body d-flex flex-column">
             <div class="fw-semibold p-name">{{ $prod->name }}</div>
 
-            <div class="small text-danger">
-              debug_page: {{ $prod->debug_page ?? 'NULL' }} |
-              source_page: {{ $prod->source_page ?? 'NULL' }} |
-              filtro: {{ (int)($prod->source_page ?? $prod->debug_page ?? 1) }}
-            </div>
+      @php
+  $codigoCompleto = $prod->code . ($prod->color ? '-' . $prod->color : '');
+@endphp
+
+<div class="small mt-1">
+  <span class="badge bg-dark">Código</span> {{ $codigoCompleto }}
+</div>
+
+<div class="small mt-1">
+  <span class="badge bg-primary">Página</span> {{ $prod->source_page ?? '-' }}
+</div>
 
             <div class="text-muted small p-price">Q {{ number_format($prod->price,2) }}</div>
 

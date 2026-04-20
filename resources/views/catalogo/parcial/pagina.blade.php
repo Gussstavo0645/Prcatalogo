@@ -20,6 +20,8 @@
   @if($items->count() > 0)
     <div class="products-overlay">
       @foreach($items as $prod)
+      @continue(!empty($prod->is_combo_child))
+
         @php
           $img = route('catalog.product.thumb', [
             'code' => $prod->code,
@@ -33,21 +35,22 @@
         @endphp
 
         <div class="product-mini">
-          <img
-            src="{{ $img }}?v={{ $prod->code }}{{ $prod->color }}"
-            alt="{{ $prod->name }}"
-            class="product-thumb"
-            data-large="{{ $imgLarge }}?v={{ $prod->code }}{{ $prod->color }}"
-            loading="lazy"
-            decoding="async"
-            style="cursor: zoom-in;"
-            onerror="this.onerror=null;this.src='https://via.placeholder.com/300x200?text=Sin+foto';"
-          />
+      <img
+  src="{{ $img }}?v={{ $prod->code }}{{ $prod->color }}"
+  alt="{{ $prod->name }}"
+  class="product-thumb"
+  data-large="{{ $imgLarge }}?v={{ $prod->code }}{{ $prod->color }}"
+  loading="lazy"
+  decoding="async"
+  style="cursor: zoom-in;"
+  onerror="this.onerror=null;this.src='https://via.placeholder.com/300x200?text=Sin+foto';"
+/>
 
           <div class="p-code">Código: {{ $prod->display_code ?? $prod->code }}</div>
           <div class="p-name">{{ $prod->name }}</div>
           <div class="p-price">Q {{ number_format($prod->price, 2) }}</div>
 
+      
           <button
             type="button"
             class="badge bg-primary mt-1 border-0 w-100 p-2"

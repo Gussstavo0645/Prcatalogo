@@ -21,10 +21,31 @@ public function create(Request $r)
     set_time_limit(120);
     ini_set('memory_limit', '1024M');
 
-    $catalogs = Catalogo::select('id', 'title')->orderByDesc('id')->get();
 
-    $mes = $r->input('mesyope', '04/2026');
-    $tipo = $r->input('tipocatalogo', 'N');
+    $catalogs = Catalogo::select('id', 'title', 'description', 'is_public', 'slug')
+    ->orderByDesc('id')
+    ->get();
+
+    $meses = DB::connection('admin_ml')
+    ->table('inventario')
+    ->selectRaw('TRIM(mesyope) as mesyope')
+    ->whereNotNull('mesyope')
+    ->whereRaw("TRIM(mesyope) <> ''")
+    ->distinct()
+    ->orderByDesc('mesyope')
+    ->pluck('mesyope');
+
+$tipos = DB::connection('admin_ml')
+    ->table('inventario')
+    ->selectRaw('TRIM(tipocatalogo) as tipocatalogo')
+    ->whereNotNull('tipocatalogo')
+    ->whereRaw("TRIM(tipocatalogo) <> ''")
+    ->distinct()
+    ->orderBy('tipocatalogo')
+    ->pluck('tipocatalogo');
+
+$mes = trim((string) $r->input('mesyope', ($meses->first() ?? '')));
+$tipo = trim((string) $r->input('tipocatalogo', ''));
     $pageFilter = $r->input('filter_page');
 
     $catalog = null;
@@ -55,18 +76,26 @@ public function create(Request $r)
         if ($items->isNotEmpty()) {
             $codes = $items->pluck('code')->filter()->unique()->values()->all();
 
-            $inventario = DB::connection('admin_ml')
-                ->table('inventario as i')
-                ->where('i.mesyope', $mes)
-                ->where('i.tipocatalogo', $tipo)
-                ->whereIn('i.Codprod', $codes)
-                ->select([
-                    'i.Codprod as code',
-                    'i.color as color',
-                    'i.Descripcion as name',
-                    'i.Precventa as price',
-                ])
-                ->get();
+          $inventarioQuery = DB::connection('admin_ml')
+    ->table('inventario as i')
+    ->whereIn('i.Codprod', $codes);
+
+if ($mes !== '') {
+    $inventarioQuery->whereRaw('TRIM(i.mesyope) = ?', [$mes]);
+}
+
+if ($tipo !== '') {
+    $inventarioQuery->whereRaw('TRIM(i.tipocatalogo) = ?', [$tipo]);
+}
+
+$inventario = $inventarioQuery
+    ->select([
+        'i.Codprod as code',
+        'i.color as color',
+        'i.Descripcion as name',
+        'i.Precventa as price',
+    ])
+    ->get();
 
             $inventarioMap = $inventario->keyBy(function ($row) {
                 return trim((string) $row->code) . '|' . trim((string) $row->color);
@@ -90,15 +119,182 @@ public function create(Request $r)
     }
 
     return view('admin.catalogo.create', compact(
-        'catalogs',
-        'catalog',
-        'products',
-        'catalogProducts',
-        'mes',
-        'tipo',
-        'pageFilter'
-    ));
+    'catalogs',
+    'catalog',
+    'products',
+    'catalogProducts',
+    'mes',
+    'tipo',
+    'pageFilter',
+    'meses',
+    'tipos'
+));
 }
+
+public function show($slug)
+{
+    $catalog = Catalogo::where('slug', $slug)->firstOrFail();
+
+    $mes = '04/2026';
+    $tipo = 'N';
+   
+
+    $pages = $catalog->paginas()
+        ->select('id','catalog_id','page_number','mime','thumb_path','meta','created_at','updated_at')
+        ->orderBy('page_number')
+        ->get();
+
+    // 1) productos del catálogo local
+    $catalogItems = DB::table('catalog_products as cp')
+        ->where('cp.catalog_id', $catalog->id)
+        ->select([
+            'cp.code',
+            'cp.color',
+            'cp.quantity',
+            'cp.page_number',
+            'cp.position',
+        ])
+        ->orderBy('cp.page_number')
+        ->orderByRaw('COALESCE(cp.position, 999999)')
+        ->get();
+
+    if ($catalogItems->isEmpty()) {
+        $productosPorPagina = collect();
+        $pagesRender = [];
+
+        foreach ($pages as $pagina) {
+            $pagesRender[] = [
+                'pagina' => $pagina,
+                'page_number_label' => (int) $pagina->page_number,
+                'items' => collect(),
+                'chunk_index' => 0,
+            ];
+        }
+
+       return view('catalogo.show', compact('catalog', 'pagesRender'));
+    }
+
+    // 2) traer inventario desde admin_ml
+    $codes = $catalogItems->pluck('code')
+        ->filter()
+        ->map(fn($v) => trim((string)$v))
+        ->unique()
+        ->values();
+$inventario = DB::connection('admin_ml')
+        ->table('inventario as i')
+        ->where('i.mesyope', $mes)
+        ->where('i.tipocatalogo', $tipo)
+        ->whereIn('i.Codprod', $codes)
+        ->select([
+            'i.Codprod as code',
+            'i.color as color',
+            'i.Descripcion as name',
+            'i.Precventa as price',
+        ])
+        ->get();
+  
+
+    // 3) indexar inventario por code|color
+    $inventarioMap = $inventario->keyBy(function ($row) {
+        return trim((string)$row->code) . '|' . trim((string)$row->color);
+    });
+
+    $inventarioByCode = $inventario
+        ->groupBy(function ($row) {
+            return trim((string)$row->code);
+        })
+        ->map(function ($rows) {
+            return $rows->first(function ($row) {
+                return trim((string)($row->name ?? '')) !== '';
+            }) ?? $rows->first();
+        });
+
+  $productos = $catalogItems->map(function ($item) use ($inventarioMap, $inventarioByCode) {
+    $codeOriginal = trim((string) ($item->code ?? ''));
+    $colorOriginal = trim((string) ($item->color ?? ''));
+
+    $lookupCode = $codeOriginal;
+    $lookupColor = $colorOriginal;
+
+    if (str_contains($codeOriginal, '-')) {
+        $partes = explode('-', $codeOriginal, 2);
+        $lookupCode = trim((string) ($partes[0] ?? ''));
+        if ($lookupColor === '') {
+            $lookupColor = trim((string) ($partes[1] ?? ''));
+        }
+    }
+
+    $key = $lookupCode . '|' . $lookupColor;
+
+    // 1) exacto por código + color
+    $invExact = $inventarioMap->get($key);
+
+    // 2) fallback solo para nombre, nunca para precio
+    $invByCode = $inventarioByCode->get($lookupCode);
+
+    $name = trim((string) ($invExact->name ?? ''));
+    if ($name === '') {
+        $name = trim((string) ($invByCode->name ?? ''));
+    }
+
+    $price = $invExact ? (float) ($invExact->price ?? 0) : 0;
+
+    return (object) [
+        'code' => $lookupCode,
+        'color' => $lookupColor,
+        'display_code' => $lookupCode . ($lookupColor !== '' ? '-' . $lookupColor : ''),
+        'name' => $name !== '' ? $name : 'Producto sin descripción',
+        'price' => $price,
+        'quantity' => (int) ($item->quantity ?? 1),
+        'page_number' => (int) ($item->page_number ?? 1),
+        'position' => (int) ($item->position ?? 1),
+    ];
+});
+
+    $productosPorPagina = $productos
+        ->sortBy([
+            ['page_number', 'asc'],
+            ['position', 'asc'],
+        ])
+        ->groupBy(function ($item) {
+            return (int) $item->page_number;
+        })
+        ->map(function ($items) {
+            return $items->sortBy('position')->values();
+        });
+
+    // AQUÍ VA LO NUEVO
+    $pagesRender = [];
+
+    foreach ($pages as $pagina) {
+        $pageNum = (int) $pagina->page_number;
+
+        $items = $productosPorPagina[$pageNum] ?? collect();
+
+        if ($items->count() > 0) {
+            $chunks = $items->chunk(9);
+
+            foreach ($chunks as $chunkIndex => $chunk) {
+                $pagesRender[] = [
+                    'pagina' => $pagina,
+                    'page_number_label' => $pageNum,
+                    'items' => $chunk->values(),
+                    'chunk_index' => $chunkIndex,
+                ];
+            }
+        } else {
+            $pagesRender[] = [
+                'pagina' => $pagina,
+                'page_number_label' => $pageNum,
+                'items' => collect(),
+                'chunk_index' => 0,
+            ];
+        }
+    }
+
+    return view('catalogo.show', compact('catalog', 'pagesRender'));
+}
+
     public function edit($catalog)
 {
      $catalog = \App\Models\Catalogo::with(['productos'])->findOrFail($catalog);
@@ -117,7 +313,7 @@ public function create(Request $r)
 
  //   return view('catalogo.index', compact('catalog', 'products'));
 
-     return view('catalogo.index', compact('catalog', 'products', 'catalogProducts'));
+     return view('admin.catalogo.index', compact('catalog', 'products', 'catalogProducts'));
 }
 
     public function addPages(Catalogo $catalog)
@@ -364,7 +560,7 @@ public function store(Request $r)
         'title'        => $data['title'],
         'description'  => $data['description'] ?? null,
         'type'         => $data['type'],
-        'is_public'    => $r->boolean('is_public'),
+        'is_public'    => 0,
         'slug'         => Str::slug($data['title']) . '-' . strtolower(Str::random(6)),
         'mesyope'      => $data['mesyope'],
         'tipocatalogo' => $data['tipocatalogo'],
@@ -436,8 +632,9 @@ public function bulkAddProducts(Request $request, $catalog)
 
 public function searchProducts(Request $r)
 {
-    $mes = $r->input('mesyope', '04/2026');
-    $tipo = $r->input('tipocatalogo', 'N');
+    $mes = trim((string) $r->input('mesyope', ''));
+$tipo = trim((string) $r->input('tipocatalogo', ''));
+
     $pageFilter = trim((string) $r->input('filter_page'));
     $catalogId = $r->input('catalog');
 
@@ -446,14 +643,20 @@ public function searchProducts(Request $r)
         $catalog = Catalogo::select('id', 'title')->find($catalogId);
     }
 
-    $productsQuery = DB::connection('admin_ml')
-        ->table('inventario as i')
-        ->where('i.mesyope', $mes)
-        ->where('i.tipocatalogo', $tipo);
+  $productsQuery = DB::connection('admin_ml')
+    ->table('inventario as i');
 
-    if ($pageFilter !== '') {
-        $productsQuery->where('i.pagina', $pageFilter);
-    }
+if ($mes !== '') {
+    $productsQuery->whereRaw('TRIM(i.mesyope) = ?', [$mes]);
+}
+
+if ($tipo !== '') {
+    $productsQuery->whereRaw('TRIM(i.tipocatalogo) = ?', [$tipo]);
+}
+
+  if ($pageFilter !== '') {
+    $productsQuery->whereRaw('TRIM(i.pagina) = ?', [$pageFilter]);
+}
 
     $products = $productsQuery
         ->select([
@@ -480,6 +683,30 @@ public function searchProducts(Request $r)
         'tipo',
         'pageFilter'
     ));
+}
+
+
+
+    public function index()
+{
+    $catalogs = Catalogo::orderByDesc('id')->get();
+    return view('admin.catalogo.index', compact('catalogs'));
+}
+
+
+public function togglePublic($id)
+{
+    $catalog = Catalogo::findOrFail($id);
+
+    $catalog->is_public = !$catalog->is_public;
+    $catalog->save();
+
+    return back()->with(
+        'success',
+        $catalog->is_public
+            ? 'Catálogo publicado correctamente.'
+            : 'Catálogo ocultado correctamente.'
+    );
 }
     
 }

@@ -49,7 +49,7 @@
         <ul class="navbar-nav ms-auto">
           <li class="nav-item">
             <a class="nav-link {{ request()->routeIs('catalogs.*') ? 'active' : '' }}"
-               href="{{ route('catalogs.index') }}">Catálogos</a>
+               href="{{ route('admin.catalogs.index') }}">Catálogos</a>
           </li>
           <a class="nav-link {{ request()->routeIs('catalogs.*') ? 'active' : '' }}"
                href="{{ route('admin.pedidos.index') }}">Pedidos</a>

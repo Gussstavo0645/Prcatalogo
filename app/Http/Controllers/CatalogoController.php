@@ -10,15 +10,20 @@ use Intervention\Image\ImageManager;
 use Intervention\Image\Drivers\Gd\Driver;
 use Illuminate\Http\Request;
 
+
+
 class CatalogoController extends Controller
 {
     /*LISTA CATALOGOS
     */
     public function index()
-    {
-        $catalogs = Catalogo::where('is_public', true)->latest()->get();
-        return view('catalogo.index', compact('catalogs'));
-    }
+{
+    $catalogos = Catalogo::where('is_public', 1)
+        ->orderByDesc('id')
+        ->get();
+
+    return view('catalogo.index', compact('catalogos'));
+}
 
     /*VER CATALOGO
     */
@@ -28,6 +33,7 @@ public function show($slug)
 
     $mes = '04/2026';
     $tipo = 'N';
+   
 
     $pages = $catalog->paginas()
         ->select('id','catalog_id','page_number','mime','thumb_path','meta','created_at','updated_at')
@@ -61,7 +67,7 @@ public function show($slug)
             ];
         }
 
-        return view('catalogo.show', compact('catalog', 'pagesRender'));
+       return view('catalogo.show', compact('catalog', 'pagesRender'));
     }
 
     // 2) traer inventario desde admin_ml
@@ -70,8 +76,7 @@ public function show($slug)
         ->map(fn($v) => trim((string)$v))
         ->unique()
         ->values();
-
-    $inventario = DB::connection('admin_ml')
+$inventario = DB::connection('admin_ml')
         ->table('inventario as i')
         ->where('i.mesyope', $mes)
         ->where('i.tipocatalogo', $tipo)
@@ -83,6 +88,7 @@ public function show($slug)
             'i.Precventa as price',
         ])
         ->get();
+  
 
     // 3) indexar inventario por code|color
     $inventarioMap = $inventario->keyBy(function ($row) {
@@ -161,6 +167,8 @@ public function show($slug)
 
         $items = $productosPorPagina[$pageNum] ?? collect();
 
+   
+
         if ($items->count() > 0) {
             $chunks = $items->chunk(9);
 
@@ -219,19 +227,12 @@ public function show($slug)
     ]);
 }
     
-public function showPublic($slug)
-{
-    $catalog = Catalogo::where('slug', $slug)
-        ->where('is_public', true)
-        ->firstOrFail();
 
-    $pagesRender = Cache::remember("catalogo_publico_{$catalog->id}", 300, function () use ($catalog) {
-        return $this->buildPublicPagesRender($catalog);
-    });
-
-    return view('catalogo.public', compact('catalog', 'pagesRender'));
-}
-
+public function showPublic($slug) { 
+    $catalog = Catalogo::where('slug', $slug) ->where('is_public', true) ->firstOrFail();
+     $pagesRender = Cache::remember("catalogo_publico_{$catalog->id}", 300,
+      function () use ($catalog) { return $this->buildPublicPagesRender($catalog); }); 
+     return view('catalogo.public', compact('catalog', 'pagesRender')); }
 public function productoImagen($code, $color = null)
 {
     $code = trim((string) $code);
@@ -440,7 +441,7 @@ protected function buildPublicPagesRender($catalog)
 
     $inventario = DB::connection('admin_ml')
         ->table('inventario as i')
-        ->where('i.mesyope', $mes)
+       ->where('i.mesyope', $mes)
         ->where('i.tipocatalogo', $tipo)
         ->whereIn('i.Codprod', $codes)
         ->select([
@@ -520,7 +521,9 @@ protected function buildPublicPagesRender($catalog)
 
     foreach ($pages as $pagina) {
         $pageNum = (int) $pagina->page_number;
+
         $items = $productosPorPagina->get($pageNum, collect());
+     
 
         if ($items->count() > 0) {
             $chunks = $items->chunk(9);
@@ -546,11 +549,16 @@ protected function buildPublicPagesRender($catalog)
     return $pagesRender;
 }
 
+
+
 public function pagesBlock(Request $request, $slug)
 {
     $catalog = Catalogo::where('slug', $slug)
         ->where('is_public', true)
         ->firstOrFail();
+
+    $mes = trim((string) $request->get('mes', ''));
+    $tipo = trim((string) $request->get('tipo', ''));
 
     $offset = max(0, (int) $request->get('offset', 0));
     $limit = max(1, min(12, (int) $request->get('limit', 6)));
@@ -573,4 +581,5 @@ public function pagesBlock(Request $request, $slug)
         'has_more' => ($offset + $slice->count()) < collect($pagesRender)->count(),
     ]);
 }
+
 }

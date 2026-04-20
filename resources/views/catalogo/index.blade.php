@@ -1,21 +1,68 @@
-{{-- resources/views/catalogs/index.blade.php --}}
-@extends('layouts.app')
+@extends('layouts.public')
 
 @section('content')
-<div class="container py-4">
-    <h1 class="mb-3">Catálogos</h1>
+<div class="catalog-home">
 
-    <div class="row g-3">
-        @foreach($catalogs as $c)
-            <div class="col-md-4">
-                <a class="card h-100 text-decoration-none" href="{{ route('catalog.show', $c->slug) }}">
-                    <div class="card-body">
-                        <h5 class="card-title">{{ $c->title }}</h5>
-                        {{ \Illuminate\Support\Str::limit($c->description, 120) }}
+    <!-- HERO -->
+<section class="catalog-hero">
+   <img src="{{ asset('imagenes/LOGO1.png') }}" alt="Marlen Lamur" class="hero-logo">
+    <div class="catalog-hero-content">
+        
+        <span class="brand-badge">Belleza y cuidado personal</span>
+        <h1 class="catalog-title">Bienvenidos</h1>
+        <p class="catalog-subtitle">
+            Descubre nuestras colecciones, promociones y novedades en una experiencia digital moderna.
+        </p>
+
+        <div class="mt-3">
+    <a href="{{ route('catalogo.quisomos') }}" class="btn btn-light">
+        Quiénes somos
+    </a>
+</div>
+    </div>
+</section>
+
+    <!-- LISTADO -->
+    <section class="catalog-list-wrap">
+        <div class="section-head">
+            <h2>Catálogos disponibles</h2>
+            <p>Explora nuestras líneas de productos.</p>
+        </div>
+
+        <div class="catalog-grid">
+            @forelse($catalogos as $c)
+                <a href="{{ route('catalog.public', $c->slug) }}" class="catalog-card-pro">
+
+                    <div class="catalog-card-overlay"></div>
+
+                    <div class="catalog-card-body">
+
+                        <div class="catalog-icon">
+                            <i class="bi bi-journal-richtext"></i>
+                        </div>
+
+                        <h3>{{ $c->title }}</h3>
+
+                        <p>
+                            {{ \Illuminate\Support\Str::limit($c->description, 120) }}
+                        </p>
+
+                        <span class="catalog-open">
+                            Ver catálogo
+                            <i class="bi bi-arrow-right"></i>
+                        </span>
+
                     </div>
                 </a>
-            </div>
-        @endforeach
-    </div>
+            @empty
+                <div class="empty-state">
+                    <i class="bi bi-folder2-open"></i>
+                    <h3>No hay catálogos disponibles</h3>
+                    <p>Pronto aparecerán nuevos catálogos aquí.</p>
+                </div>
+            @endforelse
+        </div>
+    </section>
+
 </div>
 @endsection

@@ -7,20 +7,15 @@ use App\Http\Controllers\PedidoPublicController;
 use App\Http\Controllers\Admin\AdminCatalogo;
 use App\Http\Controllers\Admin\ProductController;
 use App\Http\Controllers\Admin\PedidoController;
-
+use App\Http\Controllers\Admin\CatalogComboController;
 /*
 |--------------------------------------------------------------------------
 | PÚBLICO
 |--------------------------------------------------------------------------
 */
 
-Route::get('/', fn() => redirect()->route('catalogs.index'));
-
 Route::get('/catalogos', [CatalogoController::class, 'index'])
     ->name('catalogs.index');
-
-Route::get('/catalogos/{slug}', [CatalogoController::class, 'show'])
-    ->name('catalog.show');
 
     Route::get('/c/{slug}', [CatalogoController::class, 'showPublic'])
     ->name('catalog.public');
@@ -46,6 +41,8 @@ Route::get('/catalogo/producto-thumb/{code}/{color?}', [CatalogoController::clas
  Route::get('/c/{slug}/bloque', [CatalogoController::class, 'pagesBlock'])
     ->name('catalog.public.block');
 
+Route::view('/quienes-somos', 'catalogo.quisomos')->name('catalogo.quisomos');
+
 /*
 |--------------------------------------------------------------------------
 | ADMIN
@@ -54,8 +51,16 @@ Route::get('/catalogo/producto-thumb/{code}/{color?}', [CatalogoController::clas
 
 Route::prefix('admin')->name('admin.')->group(function () {
 
+//Route::get('/', fn() => redirect()->route('catalogs.index'));
+
+Route::get('/catalogos', [AdminCatalogo::class, 'index'])
+    ->name('catalogs.index');
+
     Route::get('/catalogos/create', [AdminCatalogo::class, 'create'])
         ->name('catalogs.create');
+
+        Route::get('/catalogos/{slug}', [AdminCatalogo::class, 'show'])
+    ->name('catalog.show');
 
     Route::post('/catalogos', [AdminCatalogo::class, 'store'])
         ->name('catalogs.store');
@@ -111,9 +116,17 @@ Route::prefix('admin')->name('admin.')->group(function () {
     Route::post('/catalogos/{catalog}/bulk-add-products', [AdminCatalogo::class, 'bulkAddProducts'])
     ->name('admin.catalogs.bulkAddProducts');
 
-    Route::get('/catalogos/products/search', [AdminCatalogo::class, 'searchProducts'])
+Route::patch('/catalogos/{id}/toggle-public', [AdminCatalogo::class, 'togglePublic'])
+    ->name('catalogos.togglePublic');
+
+    Route::get('/catalogos/productos/search', [AdminCatalogo::class, 'searchProducts'])
     ->name('catalogs.products.search');
 
+    Route::get('/catalogos/{catalog}/combos/create', [CatalogComboController::class, 'create'])
+    ->name('catalogos.combos.create');
+
+Route::post('/catalogos/{catalog}/combos', [CatalogComboController::class, 'store'])
+    ->name('catalogos.combos.store');
     //ADMIN 
     //publico
     // prueba git

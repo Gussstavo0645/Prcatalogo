@@ -128,25 +128,28 @@
   </select>
 </div>
 
-        <div class="col-md-2">
+   <div class="col-md-2">
   <label class="form-label fw-bold">Mes</label>
-  <input
-    type="text"
-    name="mesyope"
-    class="form-control"
-    value="{{ request('mesyope', $mes ?? '04/2026') }}"
-    placeholder="04/2026"
-  >
+  <input 
+  type="text"
+  name="mesyope"
+  class="form-control"
+  placeholder="EJEMPLO 05/2026"
+  value="{{ request('mesyope') }}"
+  maxlength="7"
+>
 </div>
 
         <div class="col-md-2">
           <label class="form-label fw-bold">Tipo</label>
           <select name="tipocatalogo" class="form-select">
-            <option value="N" {{ request('tipocatalogo', $tipo ?? 'N') == 'N' ? 'selected' : '' }}>N</option>
-            <option value="E" {{ request('tipocatalogo', $tipo ?? 'E') == 'E' ? 'selected' : '' }}>E</option>
-            <option value="F" {{ request('tipocatalogo', $tipo ?? 'F') == 'F' ? 'selected' : '' }}>F</option>
-            <option value="C" {{ request('tipocatalogo', $tipo ?? 'C') == 'C' ? 'selected' : '' }}>C</option>
-          </select>
+  <option value="">Seleccionar</option>
+  @foreach($tipos as $t)
+    <option value="{{ $t }}" {{ request('tipocatalogo', $tipo) == $t ? 'selected' : '' }}>
+      {{ $t }}
+    </option>
+  @endforeach
+</select>
         </div>
 
         <div class="col-md-2 d-grid">
@@ -165,15 +168,13 @@
 
       </div>
     </form>
-
     <hr>
 
     <form action="{{ route('admin.catalogs.store') }}" method="POST">
       @csrf
-
-      <input type="hidden" name="mesyope" value="{{ request('mesyope', $mes ?? '04/2026') }}">
-      <input type="hidden" name="tipocatalogo" value="{{ request('tipocatalogo', $tipo ?? 'N') }}">
-
+  
+<input type="hidden" name="mesyope" value="{{ request('mesyope') ?: ($mes ?? '05/2026') }}">
+<input type="hidden" name="tipocatalogo" value="{{ request('tipocatalogo') ?: ($tipo ?? 'N') }}">
       <div class="row g-3 align-items-end">
         <div class="col-md-4">
           <label class="form-label fw-bold">Título</label>
@@ -245,6 +246,15 @@
 @endif  
         </div>
       </div>
+
+      @if($catalog)
+  <div class="mb-3 text-end">
+    <a href="{{ route('admin.catalogos.combos.create', $catalog->id) }}" 
+       class="btn btn-warning">
+      ➕ Crear Combo
+    </a>
+  </div>
+@endif
 
       {{-- BLOQUE 3: PRODUCTOS --}}
       <div class="section-card {{ !$catalog ? 'disabled-block' : '' }}">
@@ -405,14 +415,16 @@
                 {{ isset($catalogProducts) ? $catalogProducts->count() : 0 }}
               </div>
             </div>
+@php
+  $mesMostrar = request('mesyope') ?? $mes;
+  if ($mesMostrar === '99/9999') {
+      $mesMostrar = null;
+  }
+@endphp
 
-            <div class="summary-box">
-              <div class="summary-title">Mes</div>
-              <div class="summary-value" style="font-size:16px;">
-                {{ request('mesyope', $mes ?? '04/2026') }}
-              </div>
-            </div>
-
+<div class="summary-value" style="font-size:16px;">
+  {{ $mesMostrar ?: 'No definido' }}
+</div>
             <div class="summary-box">
               <div class="summary-title">Tipo</div>
               <div class="summary-value" style="font-size:16px;">

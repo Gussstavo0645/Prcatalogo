@@ -8,7 +8,8 @@
 @endphp
 
 @section('content')
-<div class="container-fluid py-3 px-3">
+<div class="catalog-body ">
+
   <h3 class="mb-1">{{ $catalog->title }}</h3>
 
   @if(!empty($catalog->description))
@@ -40,19 +41,16 @@
     @endif
 
   </div>
-<button id="btnFullscreen" class="fullscreen-btn" onclick="toggleCatalogFullscreen()">
+<button id="btnFullscreen" class="fullscreen-btn">
   ⛶
 </button>
-  <div class="flip-controls">
-    <button id="prev" class="btn btn-outline-secondary">⟵ Anterior</button>
-    <span id="page-indicator" class="text-muted small">1 / {{ max(1, $total) }}</span>
-    <button id="next" class="btn btn-outline-secondary">Siguiente ⟶</button>
-  </div>
+ <div class="flip-controls">
+  <button id="prev" class="btn btn-outline-secondary">⟵ Anterior</button>
+  <span id="page-indicator" class="text-muted small">1 / {{ max(1, $total) }}</span>
+  <button id="next" class="btn btn-outline-secondary">Siguiente ⟶</button>
 </div>
 
-
-{{-- ======= CARRITO UI ======= --}}
-<div id="cartFab" class="cart-fab" onclick="toggleCart()">
+<div id="cartFab" class="cart-fab">
   <span id="cartCountFab" class="cart-count">0</span>
   Carrito
 </div>
@@ -66,15 +64,32 @@
   <div id="cartItems" class="cart-items"></div>
 
   <div class="cart-foot">
-    <div class="d-flex justify-content-between">
-      <span class="text-muted">Total</span>
-      <strong id="cartTotal">Q 0.00</strong>
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <strong>Total: <span id="cartTotal">Q 0.00</span></strong>
     </div>
 
-    <button class="btn btn-danger w-100 mt-2" onclick="clearCart()">Vaciar Carrito</button>
-    <button class="btn btn-primary w-100 mt-2" onclick="checkout()">Ir a pagar</button>
+    <div class="d-grid gap-2">
+      <button type="button" class="btn btn-success" onclick="checkout()">
+        Ir a pagar
+      </button>
+
+      <button type="button" class="btn btn-outline-danger" onclick="clearCart()">
+        Vaciar carrito
+      </button>
+    </div>
   </div>
 </div>
+
+<div id="imgModal">
+  <div class="img-modal-box">
+    <button type="button" class="img-close" id="imgModalClose">&times;</button>
+    <img id="imgModalSrc" alt="Zoom producto">
+  </div>
+</div>
+</div>
+
+
+{{-- ======= CARRITO UI ======= --}}
 
 {{-- ======= MODAL WIZARD 3 PASOS ======= --}}
 <div class="modal fade" id="checkoutModal" tabindex="-1" aria-hidden="true">
@@ -205,12 +220,6 @@
 </div>
 
 {{--ZOOM DE IMAGEN--}}
-<div id="imgModal">
-  <div class="img-modal-box">
-    <button type="button" class="img-close" id="imgModalClose">&times;</button>
-    <img id="imgModalSrc">
-  </div>
-</div>
 
 @endsection
 

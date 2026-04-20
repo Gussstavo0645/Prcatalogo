@@ -16,9 +16,9 @@
   @if(!empty($catalog->description))
     <p class="text-muted">{{ $catalog->description }}</p>
   @endif
-</div>
-
+  <div class="mt-2 mb-3">
   
+</div>
 
   {{--<div class="text-muted small">
     Páginas BLOB: {{ $pages->count() }} |

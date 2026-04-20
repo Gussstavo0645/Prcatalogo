@@ -51,7 +51,7 @@ return [
             'port' => env('SRC_DB_PORT', '8077'),
             'database' => env('SRC_DB_DATABASE', 'admin_ml'),
             'username' => env('SRC_DB_USERNAME', 'dev_ext'),
-            'password' => env('SRC_DB_PASSWORD', '@dev_web.AM2026#'),
+            'password' => env('SRC_DB_PASSWORD', '@dev_ext2026ML'),
             'unix_socket' => env('SRC_DB_SOCKET', ''),
             'charset' => 'utf8mb4',
             'collation' => 'utf8mb4_unicode_ci',
