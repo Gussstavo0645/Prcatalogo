@@ -2,11 +2,14 @@
 
 namespace App\Http\Controllers\Admin;
 
+
+
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
 
+use App\Models\CatalogCombo;
 use App\Models\Catalogo;
 use App\Models\PaginaCatalogo;
 use App\Models\Product;
@@ -48,12 +51,20 @@ $mes = trim((string) $r->input('mesyope', ($meses->first() ?? '')));
 $tipo = trim((string) $r->input('tipocatalogo', ''));
     $pageFilter = $r->input('filter_page');
 
-    $catalog = null;
-    $catalogProducts = collect();
+   $catalog = null;
+$catalogProducts = collect();
+$catalogCombos = collect();
 
-    if ($r->filled('catalog')) {
-        $catalog = Catalogo::findOrFail($r->input('catalog'));
-    }
+ if ($r->filled('catalog')) {
+    $catalog = Catalogo::findOrFail($r->input('catalog'));
+
+    $catalogCombos = CatalogCombo::where('catalog_id', $catalog->id)
+        ->orderBy('page_number')
+        ->orderBy('position')
+        ->get();
+
+    
+}
 
     // IMPORTANTE:
     // create() ya no debe consultar inventario pesado para el grid de búsqueda
@@ -118,11 +129,12 @@ $inventario = $inventarioQuery
         }
     }
 
-    return view('admin.catalogo.create', compact(
+ return view('admin.catalogo.create', compact(
     'catalogs',
     'catalog',
     'products',
     'catalogProducts',
+    'catalogCombos',
     'mes',
     'tipo',
     'pageFilter',
@@ -158,21 +170,50 @@ public function show($slug)
         ->orderByRaw('COALESCE(cp.position, 999999)')
         ->get();
 
-    if ($catalogItems->isEmpty()) {
-        $productosPorPagina = collect();
-        $pagesRender = [];
+        $catalogCombos = DB::table('catalog_combos as cc')
+    ->where('cc.catalog_id', $catalog->id)
+    ->select([
+        'cc.id',
+        'cc.name',
+        'cc.price',
+        'cc.page_number',
+        'cc.position',
+    ])
+    ->orderBy('cc.page_number')
+    ->orderByRaw('COALESCE(cc.position, 999999)')
+    ->get();
 
-        foreach ($pages as $pagina) {
-            $pagesRender[] = [
-                'pagina' => $pagina,
-                'page_number_label' => (int) $pagina->page_number,
-                'items' => collect(),
-                'chunk_index' => 0,
-            ];
-        }
+    
+      $combos = $catalogCombos->map(function ($combo) {
+    return (object) [
+        'type' => 'combo',
+        'code' => null,
+        'color' => null,
+        'display_code' => 'COMBO',
+        'name' => $combo->name ?? 'Combo sin nombre',
+        'price' => (float) ($combo->price ?? 0),
+        'quantity' => 1,
+        'page_number' => (int) ($combo->page_number ?? 1),
+        'position' => (int) ($combo->position ?? 1),
+        'combo_id' => $combo->id,
+    ];
+});
+   
+if ($catalogItems->isEmpty() && $catalogCombos->isEmpty()) {
+    $productosPorPagina = collect();
+    $pagesRender = [];
 
-       return view('catalogo.show', compact('catalog', 'pagesRender'));
+    foreach ($pages as $pagina) {
+        $pagesRender[] = [
+            'pagina' => $pagina,
+            'page_number_label' => (int) $pagina->page_number,
+            'items' => collect(),
+            'chunk_index' => 0,
+        ];
     }
+
+    return view('catalogo.show', compact('catalog', 'pagesRender'));
+}
 
     // 2) traer inventario desde admin_ml
     $codes = $catalogItems->pluck('code')
@@ -209,7 +250,7 @@ $inventario = DB::connection('admin_ml')
             }) ?? $rows->first();
         });
 
-  $productos = $catalogItems->map(function ($item) use ($inventarioMap, $inventarioByCode) {
+$productos = $catalogItems->map(function ($item) use ($inventarioMap, $inventarioByCode) {
     $codeOriginal = trim((string) ($item->code ?? ''));
     $colorOriginal = trim((string) ($item->color ?? ''));
 
@@ -226,10 +267,7 @@ $inventario = DB::connection('admin_ml')
 
     $key = $lookupCode . '|' . $lookupColor;
 
-    // 1) exacto por código + color
     $invExact = $inventarioMap->get($key);
-
-    // 2) fallback solo para nombre, nunca para precio
     $invByCode = $inventarioByCode->get($lookupCode);
 
     $name = trim((string) ($invExact->name ?? ''));
@@ -240,6 +278,7 @@ $inventario = DB::connection('admin_ml')
     $price = $invExact ? (float) ($invExact->price ?? 0) : 0;
 
     return (object) [
+        'type' => 'producto',
         'code' => $lookupCode,
         'color' => $lookupColor,
         'display_code' => $lookupCode . ($lookupColor !== '' ? '-' . $lookupColor : ''),
@@ -251,17 +290,19 @@ $inventario = DB::connection('admin_ml')
     ];
 });
 
-    $productosPorPagina = $productos
-        ->sortBy([
-            ['page_number', 'asc'],
-            ['position', 'asc'],
-        ])
-        ->groupBy(function ($item) {
-            return (int) $item->page_number;
-        })
-        ->map(function ($items) {
-            return $items->sortBy('position')->values();
-        });
+$itemsCatalogo = $productos->concat($combos);
+
+ $productosPorPagina = $itemsCatalogo
+    ->sortBy([
+        ['page_number', 'asc'],
+        ['position', 'asc'],
+    ])
+    ->groupBy(function ($item) {
+        return (int) $item->page_number;
+    })
+    ->map(function ($items) {
+        return $items->sortBy('position')->values();
+    });
 
     // AQUÍ VA LO NUEVO
     $pagesRender = [];

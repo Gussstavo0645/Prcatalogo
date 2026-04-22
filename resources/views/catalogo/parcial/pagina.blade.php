@@ -22,17 +22,24 @@
       @foreach($items as $prod)
       @continue(!empty($prod->is_combo_child))
 
-        @php
-          $img = route('catalog.product.thumb', [
-            'code' => $prod->code,
-            'color' => $prod->color
-          ]);
+     
 
-          $imgLarge = route('catalog.product.image', [
-            'code' => $prod->code,
-            'color' => $prod->color
-          ]);
-        @endphp
+        @php
+  if (!empty($prod->is_combo) && !empty($prod->image_path)) {
+      $img = asset('storage/' . $prod->image_path);
+      $imgLarge = asset('storage/' . $prod->image_path);
+  } else {
+      $img = route('catalog.product.thumb', [
+        'code' => $prod->code,
+        'color' => $prod->color
+      ]);
+
+      $imgLarge = route('catalog.product.image', [
+        'code' => $prod->code,
+        'color' => $prod->color
+      ]);
+  }
+@endphp
 
         <div class="product-mini">
       <img

@@ -127,6 +127,9 @@ Route::patch('/catalogos/{id}/toggle-public', [AdminCatalogo::class, 'togglePubl
 
 Route::post('/catalogos/{catalog}/combos', [CatalogComboController::class, 'store'])
     ->name('catalogos.combos.store');
+
+    Route::delete('/catalogos/combos/{id}', [App\Http\Controllers\Admin\CatalogComboController::class, 'destroy'])
+    ->name('catalogos.combos.destroy');
     //ADMIN 
     //publico
     // prueba git

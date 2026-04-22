@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\CatalogCombo;
 use App\Models\Catalogo;
 use App\Models\PaginaCatalogo;
 use Illuminate\Support\Facades\DB;
@@ -147,19 +148,38 @@ $inventario = DB::connection('admin_ml')
     ];
 });
 
-    $productosPorPagina = $productos
-        ->sortBy([
-            ['page_number', 'asc'],
-            ['position', 'asc'],
-        ])
-        ->groupBy(function ($item) {
-            return (int) $item->page_number;
-        })
-        ->map(function ($items) {
-            return $items->sortBy('position')->values();
-        });
+   $combos = CatalogCombo::where('catalog_id', $catalog->id)
+    ->get()
+    ->map(function ($combo) {
+        return (object) [
+            'code' => trim((string) $combo->code),
+            'color' => trim((string) $combo->color),
+            'display_code' => trim((string) $combo->code) . (trim((string) $combo->color) !== '' ? '-' . trim((string) $combo->color) : ''),
+            'name' => $combo->name ?: 'Combo sin descripción',
+            'price' => (float) ($combo->price ?? 0),
+            'quantity' => 1,
+            'page_number' => (int) ($combo->page_number ?? 1),
+            'position' => (int) ($combo->position ?? 1),
+            'is_combo' => true,
+            'image_path' => $combo->image_path,
+        ];
+    });
 
-    // AQUÍ VA LO NUEVO
+$productos = $productos->concat($combos);
+
+$productosPorPagina = $productos
+    ->sortBy([
+        ['page_number', 'asc'],
+        ['position', 'asc'],
+    ])
+    ->groupBy(function ($item) {
+        return (int) $item->page_number;
+    })
+    ->map(function ($items) {
+        return $items->sortBy('position')->values();
+    });
+    
+        // AQUÍ VA LO NUEVO
     $pagesRender = [];
 
     foreach ($pages as $pagina) {
@@ -415,20 +435,10 @@ protected function buildPublicPagesRender($catalog)
         ->orderByRaw('COALESCE(cp.position, 999999)')
         ->get();
 
-    if ($catalogItems->isEmpty()) {
-        $pagesRender = [];
-
-        foreach ($pages as $pagina) {
-            $pagesRender[] = [
-                'pagina' => $pagina,
-                'page_number_label' => (int) $pagina->page_number,
-                'items' => collect(),
-                'chunk_index' => 0,
-            ];
-        }
-
-        return $pagesRender;
-    }
+  if ($catalogItems->isEmpty()) {
+    // NO hacer return aquí
+    $catalogItems = collect(); // asegurar colección vacía
+}
 
     $codes = $catalogItems->pluck('code')
         ->filter()
@@ -505,18 +515,37 @@ protected function buildPublicPagesRender($catalog)
         ];
     });
 
-    $productosPorPagina = $productos
-        ->sortBy([
-            ['page_number', 'asc'],
-            ['position', 'asc'],
-        ])
-        ->groupBy(function ($item) {
-            return (int) $item->page_number;
-        })
-        ->map(function ($items) {
-            return $items->sortBy('position')->values();
-        });
+   $combos = CatalogCombo::where('catalog_id', $catalog->id)
+    ->get()
+    ->map(function ($combo) {
+        return (object) [
+            'code' => trim((string) $combo->code),
+            'color' => trim((string) $combo->color),
+            'display_code' => trim((string) $combo->code) . (trim((string) $combo->color) !== '' ? '-' . trim((string) $combo->color) : ''),
+            'name' => $combo->name ?: 'Combo sin descripción',
+            'price' => (float) ($combo->price ?? 0),
+            'quantity' => 1,
+            'page_number' => (int) ($combo->page_number ?? 1),
+            'position' => (int) ($combo->position ?? 1),
+            'is_combo' => true,
+            'image_path' => $combo->image_path,
+        ];
+    });
 
+$productos = $productos->concat($combos);
+
+$productosPorPagina = $productos
+    ->sortBy([
+        ['page_number', 'asc'],
+        ['position', 'asc'],
+    ])
+    ->groupBy(function ($item) {
+        return (int) $item->page_number;
+    })
+    ->map(function ($items) {
+        return $items->sortBy('position')->values();
+    });
+        
     $pagesRender = [];
 
     foreach ($pages as $pagina) {

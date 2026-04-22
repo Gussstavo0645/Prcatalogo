@@ -412,7 +412,7 @@
             <div class="summary-box">
               <div class="summary-title">Productos agregados</div>
               <div class="summary-value">
-                {{ isset($catalogProducts) ? $catalogProducts->count() : 0 }}
+                {{ (isset($catalogProducts) ? $catalogProducts->count() : 0) + (isset($catalogCombos) ? $catalogCombos->count() : 0) }}
               </div>
             </div>
 @php
@@ -500,26 +500,55 @@
 @endsection
 
 @section('scripts')
+
 @php
   $cartItems = [];
 
   if(isset($catalogProducts) && $catalogProducts->count()){
     foreach($catalogProducts as $cp){
-      $page = (int)($cp->page_number ?? 1);
-
       $cartItems[] = [
         'product' => [
           'id' => $cp->id ?? 0,
           'name' => $cp->name ?? 'Producto no encontrado',
           'price' => (float)($cp->price ?? 0),
-          'code' => trim($cp->code ?? ''),
-          'color' => trim($cp->color ?? ''),
+          'code' => trim((string)($cp->code ?? '')),
+          'color' => trim((string)($cp->color ?? '')),
+          'is_combo' => false,
+          'image_path' => null,
         ],
         'quantity' => (int)($cp->quantity ?? 1),
-        'page_number' => $page,
+        'page_number' => (int)($cp->page_number ?? 1),
+        'position' => (int)($cp->position ?? 999),
       ];
     }
   }
+
+  if(isset($catalogCombos) && $catalogCombos->count()){
+    foreach($catalogCombos as $cb){
+      $cartItems[] = [
+        'product' => [
+          'id' => $cb->id ?? 0,
+          'name' => $cb->name ?? 'Combo sin descripción',
+          'price' => (float)($cb->price ?? 0),
+          'code' => trim((string)($cb->code ?? '')),
+          'color' => trim((string)($cb->color ?? '')),
+          'is_combo' => true,
+          'image_path' => $cb->image_path ?? null,
+        ],
+        'quantity' => (int)($cb->quantity ?? 1),
+        'page_number' => (int)($cb->page_number ?? 1),
+        'position' => (int)($cb->position ?? 0),
+      ];
+    }
+  }
+
+  $cartItems = collect($cartItems)
+    ->sortBy([
+      ['page_number', 'asc'],
+      ['position', 'asc'],
+    ])
+    ->values()
+    ->all();
 @endphp
 
 <script>
@@ -542,26 +571,32 @@ function updateCartCount(){
 
 function renderCartRow(product, qty, catalogId, pageNumber){
   const code = (product.code || '').trim();
-  const color = (product.color || '').trim();
-  const key = `${code}-${color}-${pageNumber}`;
+const color = (product.color || '').trim();
 
- let imgUrl = 'https://via.placeholder.com/44x44?text=Sin+foto';
+const key = product.is_combo
+  ? `combo-${product.id}-${pageNumber}`
+  : `${code}-${color}-${pageNumber}`;
 
-if(code){
-  imgUrl = color
-    ? `${window.__PRODUCT_IMG_BASE__}/${encodeURIComponent(code)}/${encodeURIComponent(color)}?v=${code}${color}`
-    : `${window.__PRODUCT_IMG_BASE__}/${encodeURIComponent(code)}?v=${code}`;
-}
+  let imgUrl = 'https://via.placeholder.com/44x44?text=Sin+foto';
+
+  if (product.is_combo && product.image_path) {
+    imgUrl = `/storage/${product.image_path}`;
+  } else if (code) {
+    imgUrl = color
+      ? `${window.__PRODUCT_IMG_BASE__}/${encodeURIComponent(code)}/${encodeURIComponent(color)}?v=${code}${color}`
+      : `${window.__PRODUCT_IMG_BASE__}/${encodeURIComponent(code)}?v=${code}`;
+  }
 
   return `
     <div class="d-flex align-items-center gap-2 border rounded p-2 mb-2"
          data-cart-item="1"
          id="cart-item-${key}">
-     <img data-src="${imgUrl}"
-     class="hover-img"
-     style="width:44px;height:44px;object-fit:contain;border-radius:8px;background:#fff;cursor:pointer;"
-     alt=""
-     onerror="this.onerror=null;this.src='https://via.placeholder.com/44x44?text=Sin+foto'">
+      <img data-src="${imgUrl}"
+           class="hover-img"
+           style="width:44px;height:44px;object-fit:contain;border-radius:8px;background:#fff;cursor:pointer;"
+           alt=""
+           onerror="this.onerror=null;this.src='https://via.placeholder.com/44x44?text=Sin+foto'">
+
       <div class="flex-grow-1">
         <div class="fw-semibold small">${product.name ?? 'Producto no encontrado'}</div>
         <div class="text-muted small">Q ${formatPrice(product.price ?? 0)}</div>
@@ -570,13 +605,55 @@ if(code){
 
       <span class="badge bg-secondary" id="cart-qty-${key}">${qty} u</span>
 
-      <button type="button"
-        class="btn btn-outline-danger btn-sm"
-        onclick="removeFromCatalog('${code}', '${color}', ${catalogId}, ${pageNumber})">✕</button>
+     <button type="button"
+  class="btn btn-outline-danger btn-sm"
+  onclick="${
+    product.is_combo
+      ? `removeCombo(${product.id})`
+      : `removeFromCatalog('${code}', '${color}', ${catalogId}, ${pageNumber})`
+  }">✕</button>
     </div>
   `;
 }
 
+async function removeCombo(comboId){
+  if(!confirm('¿Quitar este combo del catálogo?')){
+    return;
+  }
+
+  try {
+    const res = await fetch(`/admin/catalogos/combos/${comboId}`, {
+      method: 'DELETE',
+      headers: {
+        'Accept': 'application/json',
+        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+      }
+    });
+
+    const data = await res.json();
+
+    if(!res.ok || !data.ok){
+      alert(data?.message || 'Error al eliminar combo');
+      return;
+    }
+
+    document.querySelector(`[id^="cart-item-combo-${comboId}-"]`)?.remove();
+    updateCartCount();
+
+    const panel = document.getElementById('cartPanel');
+    if(panel && !panel.querySelector('[data-cart-item="1"]')){
+      panel.innerHTML = `
+        <div class="text-muted small px-2 py-2" id="cartEmpty">
+          Aún no has agregado productos.
+        </div>
+      `;
+    }
+
+  } catch (e) {
+    console.error(e);
+    alert('Ocurrió un error al eliminar el combo.');
+  }
+}
 async function addToCatalog(btn, catalogId){
   const oldText = btn?.textContent || 'Agregar';
 

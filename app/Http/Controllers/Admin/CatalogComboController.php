@@ -105,4 +105,14 @@ $productoInv = $productoInvQuery->first();
 
         return back()->with('success', 'Combo creado correctamente.');
     }
+
+    public function destroy($id)
+{
+    $combo = \App\Models\CatalogCombo::findOrFail($id);
+    $combo->delete();
+
+    return response()->json([
+        'ok' => true
+    ]);
+}
 }
