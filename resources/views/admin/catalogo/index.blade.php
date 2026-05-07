@@ -15,7 +15,7 @@
                             {{ \Illuminate\Support\Str::limit($c->description, 120) }}
                         </p>
 
-                        <div class="mb-3">
+                        <div class="mb-2">
                             @if($c->is_public)
                                 <span class="badge bg-success">Público</span>
                             @else
@@ -23,7 +23,23 @@
                             @endif
                         </div>
 
+                        {{-- 🔥 TIENDAS --}}
+                        <div class="mb-3">
+                            <strong>Tiendas:</strong>
+
+                            @if($c->tiendas->count())
+                                <div class="small text-muted">
+                                    {{ $c->tiendas->pluck('name')->join(', ') }}
+                                </div>
+                            @else
+                                <div class="small text-danger">
+                                    ⚠ Sin tiendas asignadas
+                                </div>
+                            @endif
+                        </div>
+
                         <div class="d-flex gap-2 flex-wrap">
+
                             <a href="{{ route('admin.catalogs.create', ['catalog' => $c->id]) }}"
                                class="btn btn-primary btn-sm">
                                 Seleccionar
@@ -35,21 +51,36 @@
                                 Ver previa
                             </a>
 
-                            <form action="{{ route('admin.catalogos.togglePublic', $c->id) }}" method="POST">
-                                @csrf
-                                @method('PATCH')
+                            {{-- 🔥 BOTÓN ASIGNAR --}}
+                            <a href="{{ route('admin.catalogs.create', ['catalog' => $c->id]) }}"
+                               class="btn btn-warning btn-sm">
+                                Tiendas
+                            </a>
 
-                                @if($c->is_public)
-                                    <button type="submit" class="btn btn-warning btn-sm">
-                                        Ocultar
-                                    </button>
-                                @else
-                                    <button type="submit" class="btn btn-success btn-sm">
-                                        Publicar
-                                    </button>
-                                @endif
-                            </form>
+                            {{-- 🔥 PUBLICAR CON VALIDACIÓN --}}
+                            @if($c->tiendas->count())
+                                <form action="{{ route('admin.catalogos.togglePublic', $c->id) }}" method="POST">
+                                    @csrf
+                                    @method('PATCH')
+
+                                    @if($c->is_public)
+                                        <button type="submit" class="btn btn-warning btn-sm">
+                                            Ocultar
+                                        </button>
+                                    @else
+                                        <button type="submit" class="btn btn-success btn-sm">
+                                            Publicar
+                                        </button>
+                                    @endif
+                                </form>
+                            @else
+                                <button class="btn btn-secondary btn-sm" disabled>
+                                    Sin tiendas
+                                </button>
+                            @endif
+
                         </div>
+
                     </div>
                 </div>
             </div>

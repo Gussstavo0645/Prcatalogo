@@ -147,6 +147,7 @@ function createPageChunkLoader(root, options = {}) {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
       const data = await res.json();
+      console.log('DATA:', data);
       if (!data.html || data.count <= 0) return;
 
       const currentIndex = pageFlip.getCurrentPageIndex();
@@ -384,25 +385,140 @@ function showCartFab(){
    🧾 WIZARD (simplificado)
 ========================== */
 
-function validateStep(step) {
-  if (step === 1) {
-    const nombre = document.getElementById('cliNombre')?.value.trim();
-    const telefono = document.getElementById('cliTelefono')?.value.trim();
+let clienteDetectado = false;
 
-    if (!nombre) {
-      alert('Ingresa el nombre completo');
-      document.getElementById('cliNombre')?.focus();
-      return false;
+function bloquearCamposCliente() {
+  clienteDetectado = false;
+
+  const campos = ['cliNombre', 'cliTelefono', 'cliNit', 'cliDpi', 'cliCorreo'];
+
+  campos.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.value = '';
+      el.disabled = true;
     }
+  });
 
-    if (!telefono) {
-      alert('Ingresa el teléfono o WhatsApp');
-      document.getElementById('cliTelefono')?.focus();
-      return false;
-    }
-
-    return true;
+  const status = document.getElementById('clienteStatus');
+  if (status) {
+    status.className = 'text-muted';
+    status.textContent = 'Ingrese su código para continuar.';
   }
+}
+
+function desbloquearCamposCliente() {
+  clienteDetectado = true;
+
+  const campos = ['cliNombre', 'cliTelefono', 'cliNit', 'cliDpi', 'cliCorreo'];
+
+  campos.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.disabled = false;
+    }
+  });
+}
+
+async function detectarCliente() {
+  const codInput = document.getElementById('cliCodCliente');
+  const btn = document.getElementById('btnBuscarCliente');
+  const status = document.getElementById('clienteStatus');
+
+  const codcliente = codInput?.value.trim() || '';
+
+  if (!codcliente) {
+    alert('Ingrese el código de cliente.');
+    bloquearCamposCliente();
+    codInput?.focus();
+    return;
+  }
+
+  try {
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = 'Buscando...';
+    }
+
+    const res = await fetch(`/clientes/detectar/${encodeURIComponent(codcliente)}`, {
+      headers: {
+        'Accept': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest'
+      }
+    });
+
+    const data = await res.json();
+
+   if (!res.ok || !data.ok) {
+  bloquearCamposCliente();
+
+  if (status) {
+    status.className = 'text-danger';
+    status.textContent = data.message || 'Código de cliente no encontrado.';
+  }
+
+  alert(data.message || 'Código de cliente no encontrado.');
+  return;
+}
+
+   document.getElementById('cliNombre').value = '';
+document.getElementById('cliTelefono').value = '';
+document.getElementById('cliNit').value = '';
+document.getElementById('cliDpi').value = '';
+document.getElementById('cliCorreo').value = '';
+
+desbloquearCamposCliente();
+document.getElementById('cliNombre')?.focus();
+
+    if (status) {
+      status.className = 'text-success';
+      status.textContent = data.message || 'Código válido. Complete los datos del cliente.';
+    }
+
+  } catch (error) {
+    console.error('Error buscando cliente:', error);
+    bloquearCamposCliente();
+    alert('Error buscando el cliente.');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = 'Buscar';
+    }
+  }
+}
+
+function validateStep(step) {
+ if (step === 1) {
+  const codcliente = document.getElementById('cliCodCliente')?.value.trim();
+  const nombre = document.getElementById('cliNombre')?.value.trim();
+  const telefono = document.getElementById('cliTelefono')?.value.trim();
+
+  if (!codcliente) {
+    alert('Ingrese el código de cliente.');
+    document.getElementById('cliCodCliente')?.focus();
+    return false;
+  }
+
+  if (!clienteDetectado) {
+    alert('Primero debe buscar y detectar el cliente.');
+    document.getElementById('cliCodCliente')?.focus();
+    return false;
+  }
+
+  if (!nombre) {
+    alert('Ingresa el nombre completo');
+    document.getElementById('cliNombre')?.focus();
+    return false;
+  }
+
+  if (!telefono) {
+    alert('Ingresa el teléfono o WhatsApp');
+    document.getElementById('cliTelefono')?.focus();
+    return false;
+  }
+
+  return true;
+}
 
   if (step === 2) {
     const direccion = document.getElementById('entDireccion')?.value.trim();
@@ -430,28 +546,37 @@ function validateStep(step) {
     return true;
   }
 
-  if (step === 3) {
-    const metodo = document.getElementById('pagoMetodo')?.value.trim();
-    const factura = document.getElementById('pagoFactura')?.value.trim();
+ if (step === 3) {
+  const metodo = document.getElementById('pagoMetodo')?.value.trim() || '';
+  const factura = document.getElementById('pagoFactura')?.value.trim();
 
-    if (!metodo) {
-      alert('Selecciona el método de pago');
-      document.getElementById('pagoMetodo')?.focus();
-      return false;
-    }
+  if (!metodo) {
+    alert('Selecciona el método de pago');
+    document.getElementById('pagoMetodo')?.focus();
+    return false;
+  }
 
-    if (!factura) {
-      alert('Selecciona si desea factura');
-      document.getElementById('pagoFactura')?.focus();
-      return false;
-    }
-
-    return true;
+  if (!factura) {
+    alert('Selecciona si desea factura');
+    document.getElementById('pagoFactura')?.focus();
+    return false;
   }
 
   return true;
 }
+
+  return true;
+}
 async function checkout(){
+
+  const storeSelect = document.getElementById('store_id');
+const store_id = storeSelect ? storeSelect.value : null;
+
+if (!store_id) {
+  alert('Debes seleccionar una tienda antes de continuar');
+  return;
+}
+
   if (!getCart().length){
     alert('Carrito vacío');
     return;
@@ -472,12 +597,16 @@ async function checkout(){
   }
 
   const modalEl = document.getElementById('checkoutModal');
-  if (!modalEl) {
-    console.warn('No existe #checkoutModal');
-    return;
-  }
 
-  showStep(1);
+if (modalEl) {
+  const modalInstance = bootstrap.Modal.getOrCreateInstance(modalEl);
+  modalInstance.hide();
+}
+
+showStep(1);
+
+document.getElementById('cliCodCliente') && (document.getElementById('cliCodCliente').value = '');
+bloquearCamposCliente();
 
   //  salir de fullscrren luego ed ir a pagar
   if (document.fullscreenElement) {
@@ -535,6 +664,14 @@ document.addEventListener('DOMContentLoaded', function () {
   const btnBack = document.getElementById('btnBack');
   const btnNext = document.getElementById('btnNext');
   const btnConfirm = document.getElementById('btnConfirm');
+    const btnBuscarCliente = document.getElementById('btnBuscarCliente');
+  const cliCodCliente = document.getElementById('cliCodCliente');
+
+  btnBuscarCliente?.addEventListener('click', detectarCliente);
+
+  cliCodCliente?.addEventListener('input', function () {
+    bloquearCamposCliente();
+  });
 
  btnNext?.addEventListener('click', function () {
   if (!validateStep(currentStep)) return;
@@ -569,10 +706,24 @@ async function submitOrder() {
     return;
   }
 
-  const payload = {
-    nombre_cliente: document.getElementById('cliNombre')?.value.trim() || '',
-    telefono_cliente: document.getElementById('cliTelefono')?.value.trim() || '',
-    cliente_correo: document.getElementById('cliCorreo')?.value.trim() || '',
+
+
+const storeSelect = document.getElementById('store_id');
+const store_id = storeSelect ? storeSelect.value : null;
+
+if (!store_id){
+  alert ('Debes seleccionar una tienda');
+  return
+}
+
+const payload = {
+  CodCliente: document.getElementById('cliCodCliente')?.value.trim() || '',
+  Nombre: document.getElementById('cliNombre')?.value.trim() || '',
+  Telefono: document.getElementById('cliTelefono')?.value.trim() || '',
+  nit: document.getElementById('cliNit')?.value.trim() || '',
+  dpi: document.getElementById('cliDpi')?.value.trim() || '',
+  correo: document.getElementById('cliCorreo')?.value.trim() || '',
+
 
     direccion: document.getElementById('entDireccion')?.value.trim() || '',
     ciudad: document.getElementById('entCiudad')?.value.trim() || '',
@@ -581,6 +732,7 @@ async function submitOrder() {
 
     pago_metodo: document.getElementById('pagoMetodo')?.value || '',
     requiere_factura: document.getElementById('pagoFactura')?.value || '',
+    store_id: store_id,
 
     items: cart.map(item => ({
       code: item.code,
@@ -613,45 +765,126 @@ async function submitOrder() {
 
     const data = await res.json();
 
-    if (!res.ok) {
-      console.error('Error backend:', data);
-      alert(data.message || 'No se pudo enviar el pedido');
-      return;
-    }
+   if (!res.ok) {
+  console.error('Error backend:', data);
 
-    alert(data.message || 'Pedido enviado correctamente');
+  await Swal.fire({
+    icon: 'error',
+    title: 'Error',
+    text: data.message || 'No se pudo enviar el pedido',
+    confirmButtonColor: '#C2185B'
+  });
 
-    clearCart();
+  return;
+}
 
-    const modalEl = document.getElementById('checkoutModal');
-    const modalInstance = bootstrap.Modal.getInstance(modalEl);
-    modalInstance?.hide();
+let total = 0;
+let detalle = '';
 
-    resetCheckoutForm();
-    showStep(1);
 
-  } catch (error) {
-    console.error('Error enviando pedido:', error);
-    alert('Ocurrió un error al enviar el pedido');
-  } finally {
-    if (btnConfirm) {
-      btnConfirm.disabled = false;
-      btnConfirm.textContent = 'Confirmar pedido';
-    }
+
+cart.forEach((item, i) => {
+  const qty = Number(item.qty || 1);
+  const price = Number(item.price || 0);
+  const subtotal = qty * price;
+  total += subtotal;
+
+  const code = item.code || '';
+  const color = item.color ? `-${item.color}` : '';
+  const name = item.name || 'Producto';
+
+  detalle += `${i + 1}. ${name} (${code}${color}) x${qty} - Q ${subtotal.toFixed(2)}\n`;
+});
+
+
+const selectedOption = storeSelect.options[storeSelect.selectedIndex];
+
+const store = {
+  name: selectedOption.textContent.trim(),
+  whatsapp: selectedOption.dataset.whatsapp || ''
+};
+
+const mensaje = [
+  'Hola, se ha creado un nuevo pedido:',
+  '',
+  `Tienda: ${store.name || 'Tienda'}`,
+  `Dirección tienda: ${store.address || 'No especificada'}`,
+  `Horario: ${store.hours || 'No especificado'}`,
+  `Responsable: ${store.manager || 'No especificado'}`,
+  '',
+  `Código cliente: ${payload.CodCliente}`,
+`Cliente: ${payload.Nombre}`,
+`Teléfono: ${payload.Telefono}`,
+`NIT: ${payload.nit || 'No especificado'}`,
+`DPI: ${payload.dpi || 'No especificado'}`,
+  `Dirección entrega: ${payload.direccion}`,
+  `Ciudad: ${payload.ciudad}`,
+  `Entrega: ${payload.entrega_tipo}`,
+  `Método de pago: ${payload.pago_metodo}`,
+  `¿Factura?: ${payload.requiere_factura}`,
+  '',
+  'Productos:',
+  detalle,
+  `Total: Q ${total.toFixed(2)}`
+].join('\n');
+
+
+clearCart();
+
+const modalEl = document.getElementById('checkoutModal');
+const modalInstance = bootstrap.Modal.getInstance(modalEl);
+modalInstance?.hide();
+
+await Swal.fire({
+  icon: 'success',
+  title: 'Pedido recibido',
+  text: 'Ahora te llevaremos a WhatsApp para enviarlo.',
+  confirmButtonText: 'Continuar',
+  confirmButtonColor: '#C2185B'
+});
+
+
+clearCart();
+resetCheckoutForm();
+showStep(1);
+
+const numeroEmpresa = (store.whatsapp || '50237553802').replace(/\D/g, '');
+const waUrl = `https://wa.me/${numeroEmpresa}?text=${encodeURIComponent(mensaje)}`;
+window.open(waUrl, '_blank');
+
+} catch (error) {
+  console.error('Error enviando pedido:', error);
+
+  await Swal.fire({
+    icon: 'error',
+    title: 'Error',
+    text: 'Ocurrió un error al enviar el pedido',
+    confirmButtonColor: '#C2185B'
+  });
+} finally {
+  if (btnConfirm) {
+    btnConfirm.disabled = false;
+    btnConfirm.textContent = 'Confirmar pedido';
   }
+}
 }
 
 function resetCheckoutForm() {
+  document.getElementById('cliCodCliente') && (document.getElementById('cliCodCliente').value = '');
   document.getElementById('cliNombre') && (document.getElementById('cliNombre').value = '');
   document.getElementById('cliTelefono') && (document.getElementById('cliTelefono').value = '');
+  document.getElementById('cliNit') && (document.getElementById('cliNit').value = '');
+  document.getElementById('cliDpi') && (document.getElementById('cliDpi').value = '');
   document.getElementById('cliCorreo') && (document.getElementById('cliCorreo').value = '');
+
+  bloquearCamposCliente();
 
   document.getElementById('entDireccion') && (document.getElementById('entDireccion').value = '');
   document.getElementById('entCiudad') && (document.getElementById('entCiudad').value = 'Guatemala');
   document.getElementById('entTipo') && (document.getElementById('entTipo').value = 'envio');
   document.getElementById('entNotas') && (document.getElementById('entNotas').value = '');
 
-  document.getElementById('pagoMetodo') && (document.getElementById('pagoMetodo').value = 'efectivo');
+ document.getElementById('pagoMetodo') && (document.getElementById('pagoMetodo').value = 'efectivo');
   document.getElementById('pagoFactura') && (document.getElementById('pagoFactura').value = 'no');
 }
 /* ==========================
@@ -735,7 +968,8 @@ function getBaseSize() {
     mobileScrollSupport: true,
     usePortrait: base.portrait,
     autoSize: false,
-    maxShadowOpacity: 0.98
+    maxShadowOpacity: 0.98,
+    flippingTime:1400
   });
 
 pageFlip.loadFromHTML(root.querySelectorAll('.page'));
@@ -951,8 +1185,6 @@ document.addEventListener('keydown', function (e) {
     closeImgModal();
   }
 });
-
-
 
 
 

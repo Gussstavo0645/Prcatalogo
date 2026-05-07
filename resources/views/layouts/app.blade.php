@@ -1,303 +1,190 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
 <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
 
-  <meta name="csrf-token" content="{{ csrf_token() }}">
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>@yield('title', 'Catálogo Digital')</title>
+    <title>@yield('title', config('app.name', 'Catálogos'))</title>
 
-  {{-- Bootstrap 5 --}}
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-  {{-- Iconos FontAwesome --}}
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-  <link rel="stylesheet" href="{{asset('css/catalogo_interno.css')}}">
-  {{-- StPageFlip CSS (debe ir en <head>) --}}
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/page-flip@2.0.7/dist/css/page-flip.min.css">
+    <link rel="preconnect" href="https://fonts.bunny.net">
+    <link href="https://fonts.bunny.net/css?family=figtree:400,500,600,700&display=swap" rel="stylesheet" />
 
-  {{-- Estilos globales --}}
-  <style>
-    body { background-color: #f8f9fa; font-family: "Poppins", sans-serif; }
-    header.navbar { background-color: #006666; }
-    header .navbar-brand, header .nav-link { color: white !important; font-weight: 500; }
-    footer { background-color: #006666; color: #fff; texts-align: center; padding: 12px 0; margin-top: 40px; }
-  </style>
+    {{-- Bootstrap --}}
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    {{-- Vite --}}
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
 
-<style>
-@media print {
-  .catalog-page { page-break-after: always; }
-}
-</style>
-  @yield('head')
+    <style>
+        body {
+            font-family: 'Figtree', sans-serif;
+            background: #f4f6fb;
+        }
+
+        .admin-navbar {
+            background: #006b68;
+            border-bottom: 1px solid rgba(255,255,255,.15);
+            padding: 18px 0;
+        }
+
+        .admin-navbar .brand {
+            color: #fff;
+            font-size: 22px;
+            font-weight: 800;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .admin-navbar .nav-link-custom {
+            color: #fff;
+            text-decoration: none;
+            font-weight: 600;
+            margin-left: 22px;
+        }
+
+        .admin-navbar .nav-link-custom:hover {
+            color: #d1fae5;
+        }
+
+        .admin-content {
+            padding-top: 24px;
+        }
+
+        .section-card {
+            border: 1px solid #e5e7eb;
+            border-radius: 14px;
+            background: #fff;
+            box-shadow: 0 4px 14px rgba(0,0,0,.04);
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+
+        .section-card .card-header {
+            background: #f8fafc;
+            border-bottom: 1px solid #e5e7eb;
+            font-weight: 700;
+            font-size: 18px;
+            padding: 14px 18px;
+        }
+
+        .section-card .card-body {
+            padding: 18px;
+        }
+
+        .step-badge {
+            display: inline-block;
+            min-width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: #0d6efd;
+            color: #fff;
+            text-align: center;
+            line-height: 28px;
+            font-size: 14px;
+            margin-right: 8px;
+        }
+
+        .form-control,
+        .form-select {
+            border-radius: 8px;
+            min-height: 42px;
+        }
+
+        .btn {
+            border-radius: 8px;
+            min-height: 42px;
+        }
+
+        .summary-box {
+            background: #f8fafc;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 12px;
+            margin-bottom: 10px;
+        }
+
+        .summary-title {
+            font-size: 13px;
+            color: #6b7280;
+            margin-bottom: 4px;
+        }
+
+        .summary-value {
+            font-size: 18px;
+            font-weight: 700;
+        }
+    </style>
+
+    @yield('styles')
+    @stack('styles')
 </head>
+
 <body>
 
-@if(empty($publicView))
-    
-  {{-- NAVBAR --}}
-  <header class="navbar navbar-expand-lg navbar-dark shadow-sm">
-    <div class="container">
-      <a href="{{ url('/') }}" class="navbar-brand fw-bold">
-        <i class="fa-solid fa-book-open me-2"></i> CATALOGOS
-        
-      </a>
-      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarMenu">
-        <span class="navbar-toggler-icon"></span>
-      </button>
+    <nav class="admin-navbar">
+        <div class="container d-flex justify-content-between align-items-center flex-wrap">
+           <a href="{{ route('admin.dashboard') }}" class="brand">
+    <span>📊</span>
+    <span>ADMIN</span>
+</a>
 
-      <div class="collapse navbar-collapse" id="navbarMenu">
-        <ul class="navbar-nav ms-auto">
-          <li class="nav-item">
-            <a class="nav-link {{ request()->routeIs('catalogs.*') ? 'active' : '' }}"
-               href="{{ route('admin.catalogs.index') }}">Catálogos</a>
-          </li>
-          <a class="nav-link {{ request()->routeIs('catalogs.*') ? 'active' : '' }}"
-               href="{{ route('admin.pedidos.index') }}">Pedidos</a>
-          </li>
-          <a class="nav-link {{ request()->routeIs('catalogs.*') ? 'active' : '' }}"
-               href="{{ route('admin.catalogs.create') }}">Crear Catalogo</a>
-          </li>
-           
-           <li class="nav-item">
-    <a class="nav-link" href="#" data-bs-toggle="modal" data-bs-target="#modalProducto">
-      <i {{--class="fa-solid fa-box me-1"--}}></i> Crear Productos
+          <div class="d-flex align-items-center flex-wrap">
+
+  
+
+    <a href="{{ route('admin.catalogs.index') }}" class="nav-link-custom">
+        Catálogos
     </a>
-</li>
-</ul>
-        </ul>
-      </div>
-    </div>
-  </header>
-  @endif
 
-  {{-- CONTENIDO --}}
-  <main>
-    @yield('content')
-  </main>
+    <a href="{{ route('admin.pedidos.index') }}" class="nav-link-custom">
+        Pedidos
+    </a>
 
-  {{-- PIE DE PÁGINA --}}
-  <footer>
-    <small>&copy; {{ date('Y') }} Catálogo Digital</small>
-  </footer>
+    @auth
+        @if(auth()->user()->role === 'admin_general')
 
-  {{-- Scripts globales --}}
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+            <a href="{{ route('admin.catalogs.create') }}" class="nav-link-custom">
+                Crear Catálogo
+            </a>
 
-  {{-- StPageFlip JS (va antes de </body>) --}}
-  <script src="https://cdn.jsdelivr.net/npm/page-flip@2.0.7/dist/js/page-flip.browser.min.js"></script>
-  <script src="{{asset('js/catalogo_interno.js')}}"> </script>
-<!--  MODAL CREAR PRODUCTO -->
-<div class="modal fade" id="modalProducto" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-lg">
-    <div class="modal-content">
+              <a href="{{ route('admin.dashboard') }}" class="nav-link-custom">
+        Dashboard
+    </a>
 
-      <form action="{{ route('admin.products.store') }}" method="POST" enctype="multipart/form-data">
-        @csrf
+         {{--   <a href="{{ route('admin.products.index') }}" class="nav-link-custom">
+                Crear Productos
+            </a>--}}
 
-         <input type="hidden" name="catalog_id" value="{{ $catalog->id ?? '' }}">
+            @if(Route::has('admin.stores.index'))
+                <a href="{{ route('admin.stores.index') }}" class="nav-link-custom">
+                    Tiendas
+                </a>
+            @endif
 
-        <div class="modal-header bg-primary text-white">
-          <h5 class="modal-title">Nuevo Producto</h5>
-          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-        </div>
+        @endif
 
-        <div class="modal-body">
-          <div class="row g-3">
-<div class="col-12 d-none" id="catBlock">
-  <label class="form-label">Categorías</label>
-  <select name="categories[]" id="categories" class="form-select" multiple>
-    @foreach($categories as $cat)
-      <option value="{{ $cat->id }}">{{ $cat->name }}</option>
-    @endforeach
-  </select>
-  <small class="text-muted">Ctrl + click para seleccionar varias</small>
+        <form method="POST" action="{{ route('logout') }}" class="d-inline ms-3">
+            @csrf
+            <button type="submit" class="btn btn-sm btn-light fw-bold">
+                Cerrar sesión
+            </button>
+        </form>
+    @endauth
+
 </div>
-
-<div class="col-12 d-none" id="barcodeBlock">
-  <label class="form-label">Código de identificación</label>
-
-  <div class="row g-2">
-    <div class="col-md-6">
-      <label class="form-label small text-muted">Tipo de código de barras</label>
-      <select name="barcode_type" id="barcode_type" class="form-select">
-        <option value="">-- Seleccionar --</option>
-        <option value="EAN13">EAN-13</option>
-        <option value="EAN8">EAN-8</option>
-        <option value="UPC">UPC</option>
-        <option value="CODE128">CODE-128</option>
-        <option value="QR">QR</option>
-      </select>
-    </div>
-
-    <div class="col-md-6">
-      <label class="form-label small text-muted">Código de barras</label>
-      <input type="text" name="barcode_value" id="barcode_value" class="form-control" placeholder="Ej: 1234567890123">
-    </div>
-  </div>
-</div>
-
-
-            <div class="col-md-6">
-              <label class="form-label">Título del producto</label>
-              <input name="name" class="form-control" required>
-            </div>
-
-            <div class="col-md-6">
-              <label class="form-label">Código de identificación</label>
-              <input name="code" class="form-control">
-
-            </div>
-
-            <div class="col-12">
-              <label class="form-label">Breve descripción</label>
-              <textarea name="description" class="form-control" rows="2"></textarea>
-            </div>
-
-            <div class="col-md-6">
-              <label class="form-label">Precio</label>
-              <input type="number" step="0.01" name="price" class="form-control" required>
-            </div>
-
-            <div class="col-md-6">
-              <label class="form-label">Foto</label>
-              <input type="file" name="image" accept="image/*" class="form-control" required>
-            </div>
-
-          </div>
         </div>
+    </nav>
 
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-          <button class="btn btn-success">Guardar</button>
-        </div>
+    <main class="admin-content">
+        @yield('content')
+    </main>
 
-      </form>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
-    </div>
-  </div>
-</div>
-
-  @yield('scripts')
-
-  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-
-@if(session()->has('swal_product_created'))
-<script>
-  const data = {
-  title: {!! json_encode(session('swal_product_created.title'), JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE) !!},
-  text:  {!! json_encode(session('swal_product_created.text'),  JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE) !!},
-  view:  {!! json_encode(session('swal_product_created.view'),  JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE) !!},
-  product: {!! json_encode(session('swal_product_created.product'), JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE) !!},
-  update_url: {!! json_encode(session('swal_product_created.update_url'), JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE) !!},
-};
-
-
-  Swal.fire({
-    icon: 'success',
-    title: data.title || 'Listo',
-    text: data.text || '',
-    showDenyButton: true,
-    showCancelButton: true,
-    confirmButtonText: '1) Seguir editando',
-    denyButtonText: '2) Registrar nuevo producto',
-    cancelButtonText: '3) Ver el producto en el catálogo',
- }).then((result) => {
-
-  // 1) Seguir editando
-  if (result.isConfirmed) {
-    const modalEl = document.getElementById('modalProducto');
-    const form = modalEl?.querySelector('form');
-    if (!modalEl || !form) return;
-
-    // Mostrar categorías SOLO aquí
-    const catBlock = document.getElementById('catBlock');
-    if (catBlock) catBlock.classList.remove('d-none');
-
-    // Cambiar a UPDATE
-    if (data.update_url) form.action = data.update_url;
-
-    // Spoof PATCH
-    let methodInput = form.querySelector('input[name="_method"]');
-    if (!methodInput) {
-      methodInput = document.createElement('input');
-      methodInput.type = 'hidden';
-      methodInput.name = '_method';
-      form.appendChild(methodInput);
-    }
-    methodInput.value = 'PATCH';
-
-    // Llenar campos
-    const p = data.product || {};
-    form.querySelector('[name="name"]').value = p.name ?? '';
-    form.querySelector('[name="code"]').value = p.code ?? '';
-    form.querySelector('[name="description"]').value = p.description ?? '';
-    form.querySelector('[name="price"]').value = p.price ?? '';
-
-    // Marcar categorías
-    const select = document.getElementById('categories');
-    const selected = p.categories_ids || [];
-    if (select) {
-      [...select.options].forEach(opt => {
-        opt.selected = selected.includes(parseInt(opt.value));
-      });
-    }
-
-    // Mostrar bloque de barcode
-const barcodeBlock = document.getElementById('barcodeBlock');
-if (barcodeBlock) barcodeBlock.classList.remove('d-none');
-
-// llenar barcode
-form.querySelector('[name="barcode_type"]').value  = p.barcode_type ?? '';
-form.querySelector('[name="barcode_value"]').value = p.barcode_value ?? '';
-
-
-    // Botón a "Guardar cambios"
-    const btn = form.querySelector('.btn.btn-success');
-    if (btn) btn.textContent = 'Guardar cambios';
-
-    new bootstrap.Modal(modalEl).show();
-    return;
-  }
-
-  // 2) Registrar nuevo producto
-  if (result.isDenied) {
-    const modalEl = document.getElementById('modalProducto');
-    const form = modalEl?.querySelector('form');
-    if (!modalEl || !form) return;
-
-    // Reset form
-    form.reset();
-
-    // Ocultar categorías otra vez
-    const catBlock = document.getElementById('catBlock');
-    if (catBlock) catBlock.classList.add('d-none');
-
-    // limpiar selección
-    const select = document.getElementById('categories');
-    if (select) [...select.options].forEach(o => o.selected = false);
-
-    // quitar PATCH si existe
-    const m = form.querySelector('input[name="_method"]');
-    if (m) m.remove();
-
-    // volver a STORE
-    form.action = "{{ route('admin.products.store') }}";
-
-    // botón a Guardar
-    const btn = form.querySelector('.btn.btn-success');
-    if (btn) btn.textContent = 'Guardar';
-
-    new bootstrap.Modal(modalEl).show();
-    return;
-  }
-
-  // 3) Ver en catálogo
-  if (result.dismiss === Swal.DismissReason.cancel) {
-    if (data.view) window.location.href = data.view;
-  }
-});
-
-</script>
-@endif
+    @yield('scripts')
+    @stack('scripts')
 </body>
 </html>

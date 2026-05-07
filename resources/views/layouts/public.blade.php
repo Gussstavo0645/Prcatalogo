@@ -39,15 +39,21 @@
     </a>
 
     <!-- Chat -->
-    <a href="#" class="float-btn chat">
+ {{--   <a href="#" class="float-btn chat">
         <i class="bi bi-chat-dots-fill"></i>
-    </a>
+    </a>--}}
 
 </div>
-
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/page-flip/dist/js/page-flip.browser.min.js"></script>
-    
+     <script> window.STORE_INFO = {
+    name: @json($catalog->store_name ?? $catalog->title ?? 'Tienda'),
+    address: @json($catalog->store_address ?? ''),
+    hours: @json($catalog->store_hours ?? ''),
+    manager: @json($catalog->store_manager ?? ''),
+    whatsapp: @json($catalog->whatsapp_number ?? '50237553802')
+  }; </script>
     <script src="{{ asset('js/catalogo_publico.js') }}?v=13"></script>
 
     @yield('scripts')

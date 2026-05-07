@@ -12,6 +12,23 @@
 
   <h3 class="mb-1">{{ $catalog->title }}</h3>
 
+ <div class="mb-3">
+  <label class="fw-bold">Seleccionar tienda</label>
+
+  <select id="store_id" class="form-select" required>
+    <option value="">Seleccionar tienda</option>
+
+    @foreach($catalog->tiendas as $tienda)
+      <option 
+        value="{{ $tienda->id }}" 
+        data-whatsapp="{{ $tienda->whatsapp_number }}">
+        {{ $tienda->name }}
+      </option>
+    @endforeach
+
+  </select>
+</div>
+
   @if(!empty($catalog->description))
     <p class="text-muted">{{ $catalog->description }}</p>
   @endif
@@ -123,26 +140,52 @@
           .wizard-step.active{display:block}
         </style>
 
-        {{-- STEP 1 --}}
-        <div class="wizard-step active" id="step1">
-          <h6 class="mb-3">Información del cliente</h6>
-          <div class="row g-2">
-            <div class="col-md-6">
-              <label class="form-label">Nombre completo *</label>
-              <input type="text" class="form-control" id="cliNombre" placeholder="Nombre y apellido">
-            </div>
-            <div class="col-md-6">
-              <label class="form-label">Teléfono / WhatsApp *</label>
-              <input type="text" class="form-control" id="cliTelefono" placeholder="Ej: 5555-5555">
-            </div>
-            <div class="col-12">
-              <label class="form-label">Correo (opcional)</label>
-              <input type="email" class="form-control" id="cliCorreo" placeholder="correo@ejemplo.com">
-            </div>
-          </div>
-        </div>
+       {{-- STEP 1 --}}
+<div class="wizard-step active" id="step1">
+  <h6 class="mb-3">Información del cliente</h6>
 
-      
+  <div class="row g-2">
+
+    <div class="col-md-5">
+      <label class="form-label">Código de cliente *</label>
+      <div class="input-group">
+        <input type="text" class="form-control" id="cliCodCliente" placeholder="Ingrese su código">
+        <button type="button" class="btn btn-primary" id="btnBuscarCliente">
+          Buscar
+        </button>
+      </div>
+      <small id="clienteStatus" class="text-muted">
+        Ingrese su código para continuar.
+      </small>
+    </div>
+
+    <div class="col-md-7">
+      <label class="form-label">Nombre *</label>
+      <input type="text" class="form-control" id="cliNombre" placeholder="Nombre completo" disabled>
+    </div>
+
+    <div class="col-md-4">
+      <label class="form-label">Teléfono / WhatsApp *</label>
+      <input type="text" class="form-control" id="cliTelefono" placeholder="Ej: 5555-5555" disabled>
+    </div>
+
+    <div class="col-md-4">
+      <label class="form-label">NIT</label>
+      <input type="text" class="form-control" id="cliNit" placeholder="CF o NIT" disabled>
+    </div>
+
+    <div class="col-md-4">
+      <label class="form-label">DPI</label>
+      <input type="text" class="form-control" id="cliDpi" placeholder="DPI" disabled>
+    </div>
+
+    <div class="col-12">
+      <label class="form-label">Correo opcional</label>
+      <input type="email" class="form-control" id="cliCorreo" placeholder="correo@ejemplo.com" disabled>
+    </div>
+
+  </div>
+</div>
 
 
         {{-- STEP 2 --}}
@@ -160,8 +203,8 @@
             <div class="col-md-6">
               <label class="form-label">Tipo de entrega *</label>
               <select class="form-select" id="entTipo">
-                <option value="envio" selected>Envío a domicilio</option>
                 <option value="recoger">Recoger en tienda</option>
+                <option value="envio" selected>    </option>
               </select>
             </div>
             <div class="col-12">
@@ -182,7 +225,7 @@
               <select class="form-select" id="pagoMetodo">
                 <option value="efectivo" selected>Efectivo</option>
                 <option value="transferencia">Transferencia</option>
-                <option value="tarjeta">Tarjeta</option>
+                <option value="tarjeta">Tarjeta POS</option>
               </select>
             </div>
 
@@ -205,22 +248,101 @@
             </div>
           </div>
         </div>
-
       </div>
 
-      <div class="modal-footer">
-        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
-        <button type="button" class="btn btn-outline-secondary" id="btnBack">Atrás</button>
-        <button type="button" class="btn btn-primary" id="btnNext">Siguiente</button>
-        <button type="button" class="btn btn-success d-none" id="btnConfirm">Confirmar pedido</button>
+          <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+          Cancelar
+        </button>
+
+        <button type="button" class="btn btn-outline-secondary" id="btnBack">
+          Atrás
+        </button>
+
+        <button type="button" class="btn btn-primary" id="btnNext">
+          Siguiente
+        </button>
+
+        <button type="button" class="btn btn-success d-none" id="btnConfirm">
+          Confirmar pedido
+        </button>
       </div>
 
     </div>
   </div>
 </div>
 
-{{--ZOOM DE IMAGEN--}}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+
+    let pasoActual = 1;
+
+    const btnBack = document.getElementById('btnBack');
+    const btnNext = document.getElementById('btnNext');
+    const btnConfirm = document.getElementById('btnConfirm');
+
+    const steps = document.querySelectorAll('.wizard-step');
+    const pills = document.querySelectorAll('.step-pill');
+
+    if (!btnBack || !btnNext || !btnConfirm) {
+        console.error('No se encontraron los botones del wizard.');
+        return;
+    }
+
+    function mostrarPaso(paso) {
+        steps.forEach(step => {
+            step.classList.remove('active');
+        });
+
+        const stepActual = document.getElementById('step' + paso);
+        if (stepActual) {
+            stepActual.classList.add('active');
+        }
+
+        pills.forEach(pill => {
+            const numero = parseInt(pill.dataset.step);
+
+            pill.classList.remove('active', 'done');
+
+            if (numero < paso) {
+                pill.classList.add('done');
+            }
+
+            if (numero === paso) {
+                pill.classList.add('active');
+            }
+        });
+
+        btnBack.classList.toggle('d-none', paso === 1);
+        btnNext.classList.toggle('d-none', paso === 3);
+        btnConfirm.classList.toggle('d-none', paso !== 3);
+    }
+
+    btnNext.addEventListener('click', function () {
+        if (pasoActual < 3) {
+            pasoActual++;
+            mostrarPaso(pasoActual);
+        }
+    });
+
+    btnBack.addEventListener('click', function () {
+        if (pasoActual > 1) {
+            pasoActual--;
+            mostrarPaso(pasoActual);
+        }
+    });
+
+    btnConfirm.addEventListener('click', function () {
+        alert('Pedido confirmado correctamente.');
+
+        // Después aquí conectas tu guardado real:
+        // finalizarPedido();
+    });
+
+    mostrarPaso(pasoActual);
+});
+</script>
 
 @endsection
 
-  
+

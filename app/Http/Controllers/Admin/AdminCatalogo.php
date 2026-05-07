@@ -13,6 +13,7 @@ use App\Models\CatalogCombo;
 use App\Models\Catalogo;
 use App\Models\PaginaCatalogo;
 use App\Models\Product;
+use App\Models\Store;
 
 use function Symfony\Component\Clock\now;
 
@@ -129,6 +130,8 @@ $inventario = $inventarioQuery
         }
     }
 
+
+$tiendas = Store::all();
  return view('admin.catalogo.create', compact(
     'catalogs',
     'catalog',
@@ -139,7 +142,8 @@ $inventario = $inventarioQuery
     'tipo',
     'pageFilter',
     'meses',
-    'tipos'
+    'tipos',
+    'tiendas'
 ));
 }
 
@@ -605,7 +609,10 @@ public function store(Request $r)
         'slug'         => Str::slug($data['title']) . '-' . strtolower(Str::random(6)),
         'mesyope'      => $data['mesyope'],
         'tipocatalogo' => $data['tipocatalogo'],
+       
     ]);
+
+$catalog->tiendas()->sync($r->input('tiendas', []));
 
     return redirect()->route('admin.catalogs.create', [
         'catalog'      => $catalog->id,
@@ -748,6 +755,13 @@ public function togglePublic($id)
             ? 'Catálogo publicado correctamente.'
             : 'Catálogo ocultado correctamente.'
     );
+}
+
+public function syncTiendas(Request $r, Catalogo $catalog)
+{
+    $catalog->tiendas()->sync($r->input('tiendas', []));
+
+    return back()->with('ok', 'Tiendas asignadas correctamente.');
 }
     
 }

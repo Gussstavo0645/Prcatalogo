@@ -18,8 +18,23 @@
     <a href="{{ route('catalogo.quisomos') }}" class="btn btn-light">
         Quiénes somos
     </a>
+
+    <a href="{{ route('login') }}" class="btn btn-light">
+            Iniciar sesión
+        </a>
+
+   {{-- <a href="{{ route('register') }}" class="btn btn-light">
+            Registrarme
+        </a>--}}
+
+    @auth
+        <a href="{{ route('admin.catalogs.create') }}" class="btn btn-light">
+            Ir al panel
+        </a>
+    @endauth
 </div>
-    </div>
+</div>
+    
 </section>
 
     <!-- LISTADO -->

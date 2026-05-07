@@ -121,20 +121,29 @@ $inventario = DB::connection('admin_ml')
         }
     }
 
-    $key = $lookupCode . '|' . $lookupColor;
+$key = $lookupCode . '|' . $lookupColor;
 
-    // 1) exacto por código + color
-    $invExact = $inventarioMap->get($key);
+$invExact = $inventarioMap->get($key);
 
-    // 2) fallback solo para nombre, nunca para precio
-    $invByCode = $inventarioByCode->get($lookupCode);
+// Si el catálogo tiene color 0, pero inventario lo tiene vacío
+if (!$invExact && $lookupColor === '0') {
+    $invExact = $inventarioMap->get($lookupCode . '|');
+}
 
-    $name = trim((string) ($invExact->name ?? ''));
-    if ($name === '') {
-        $name = trim((string) ($invByCode->name ?? ''));
-    }
+// Si el catálogo tiene color vacío, pero inventario lo tiene como 0
+if (!$invExact && $lookupColor === '') {
+    $invExact = $inventarioMap->get($lookupCode . '|0');
+}
 
-    $price = $invExact ? (float) ($invExact->price ?? 0) : 0;
+
+$name = trim((string) ($invExact->name ?? ''));
+if ($name === '') {
+    $name = trim((string) ($invByCode->name ?? ''));
+}
+
+$price = $invExact
+    ? (float) ($invExact->price ?? 0)
+    : (float) ($invByCode->price ?? 0);
 
     return (object) [
         'code' => $lookupCode,
@@ -248,11 +257,21 @@ $productosPorPagina = $productos
 }
     
 
-public function showPublic($slug) { 
-    $catalog = Catalogo::where('slug', $slug) ->where('is_public', true) ->firstOrFail();
-     $pagesRender = Cache::remember("catalogo_publico_{$catalog->id}", 300,
-      function () use ($catalog) { return $this->buildPublicPagesRender($catalog); }); 
-     return view('catalogo.public', compact('catalog', 'pagesRender')); }
+public function showPublic($slug)
+{
+    $catalog = Catalogo::where('slug', $slug)
+        ->where('is_public', true)
+        ->firstOrFail();
+
+    $mes = trim((string) ($catalog->mesyope ?? ''));
+    $tipo = trim((string) ($catalog->tipocatalogo ?? ''));
+
+  $pagesRender = $this->buildPublicPagesRender($catalog);
+    
+
+    return view('catalogo.public', compact('catalog', 'pagesRender'));
+}
+
 public function productoImagen($code, $color = null)
 {
     $code = trim((string) $code);
@@ -414,8 +433,8 @@ public function productoThumb($code, $color = null)
 
 protected function buildPublicPagesRender($catalog)
 {
-    $mes = $catalog->mesyope ?? '04/2026';
-    $tipo = $catalog->tipocatalogo ?? 'N';
+    $mes = trim((string) ($catalog->mesyope ?? ''));
+$tipo = trim((string) ($catalog->tipocatalogo ?? ''));
 
     $pages = $catalog->paginas()
         ->select('id', 'catalog_id', 'page_number', 'mime')
@@ -441,42 +460,40 @@ protected function buildPublicPagesRender($catalog)
 }
 
     $codes = $catalogItems->pluck('code')
-        ->filter()
-        ->map(function ($v) {
-            $v = trim((string) $v);
-            return str_contains($v, '-') ? trim(explode('-', $v, 2)[0]) : $v;
-        })
-        ->unique()
-        ->values();
+    ->filter()
+    ->map(function ($v) {
+        $v = trim((string) $v);
+        return str_contains($v, '-') ? trim(explode('-', $v, 2)[0]) : $v;
+    })
+    ->unique()
+    ->values()
+    ->all();
 
+$inventario = collect();
+
+if (!empty($codes) && $mes !== '' && $tipo !== '') {
     $inventario = DB::connection('admin_ml')
         ->table('inventario as i')
-       ->where('i.mesyope', $mes)
-        ->where('i.tipocatalogo', $tipo)
-        ->whereIn('i.Codprod', $codes)
+        ->whereIn(DB::raw('TRIM(i.Codprod)'), $codes)
+        ->whereRaw('TRIM(i.mesyope) = ?', [$mes])
+        ->whereRaw('TRIM(i.tipocatalogo) = ?', [$tipo])
         ->select([
             'i.Codprod as code',
             'i.color as color',
             'i.Descripcion as name',
             'i.Precventa as price',
+            'i.mesyope',
+            'i.tipocatalogo',
         ])
         ->get();
-
-    $inventarioMap = $inventario->keyBy(function ($row) {
+}
+ $inventarioMap = $inventario->keyBy(function ($row) {
         return trim((string) $row->code) . '|' . trim((string) $row->color);
     });
 
-    $inventarioByCode = $inventario
-        ->groupBy(function ($row) {
-            return trim((string) $row->code);
-        })
-        ->map(function ($rows) {
-            return $rows->first(function ($row) {
-                return trim((string) ($row->name ?? '')) !== '';
-            }) ?? $rows->first();
-        });
 
-    $productos = $catalogItems->map(function ($item) use ($inventarioMap, $inventarioByCode) {
+
+    $productos = $catalogItems->map(function ($item) use ($inventarioMap) {
         $codeOriginal = trim((string) ($item->code ?? ''));
         $colorOriginal = trim((string) ($item->color ?? ''));
 
@@ -493,15 +510,20 @@ protected function buildPublicPagesRender($catalog)
 
         $key = $lookupCode . '|' . $lookupColor;
 
-        $invExact = $inventarioMap->get($key);
-        $invByCode = $inventarioByCode->get($lookupCode);
+$invExact = $inventarioMap->get($key);
 
-        $name = trim((string) ($invExact->name ?? ''));
-        if ($name === '') {
-            $name = trim((string) ($invByCode->name ?? ''));
-        }
+// Solo normalizamos color 0/vacío, pero siempre dentro del mismo mes y tipo
+if (!$invExact && $lookupColor === '0') {
+    $invExact = $inventarioMap->get($lookupCode . '|');
+}
 
-        $price = $invExact ? (float) ($invExact->price ?? 0) : 0;
+if (!$invExact && $lookupColor === '') {
+    $invExact = $inventarioMap->get($lookupCode . '|0');
+}
+
+$name = trim((string) ($invExact->name ?? ''));
+
+$price = $invExact ? (float) ($invExact->price ?? 0) : 0;
 
         return (object) [
             'code' => $lookupCode,
@@ -586,15 +608,10 @@ public function pagesBlock(Request $request, $slug)
         ->where('is_public', true)
         ->firstOrFail();
 
-    $mes = trim((string) $request->get('mes', ''));
-    $tipo = trim((string) $request->get('tipo', ''));
-
     $offset = max(0, (int) $request->get('offset', 0));
     $limit = max(1, min(12, (int) $request->get('limit', 6)));
 
-    $pagesRender = Cache::remember("catalogo_publico_{$catalog->id}", 300, function () use ($catalog) {
-        return $this->buildPublicPagesRender($catalog);
-    });
+    $pagesRender = $this->buildPublicPagesRender($catalog);
 
     $slice = collect($pagesRender)->slice($offset, $limit)->values();
 

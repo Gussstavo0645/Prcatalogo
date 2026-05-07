@@ -293,14 +293,48 @@ document.addEventListener("DOMContentLoaded", function(){
         <div class="wizard-step" id="step3">
           <h6 class="mb-3">Método de pago</h6>
           <div class="row g-2">
-            <div class="col-md-6">
-              <label class="form-label">Método *</label>
-              <select class="form-select" id="pagoMetodo">
-                <option value="efectivo" selected>Efectivo</option>
-                <option value="transferencia">Transferencia</option>
-                <option value="tarjeta">Tarjeta</option>
-              </select>
-            </div>
+            <div class="col-12">
+
+  <label class="payment-card d-flex gap-3 mb-3">
+    <input type="radio" name="pagoMetodo" value="cuotas">
+    <div>
+      <div class="fw-bold">Cuotas</div>
+      <div class="text-muted small">
+        Divide tu compra con tarjetas Visa o Mastercard.
+      </div>
+      <div class="mt-2 d-flex gap-2">
+        <span class="card-badge">Visa</span>
+        <span class="card-badge">Mastercard</span>
+      </div>
+    </div>
+  </label>
+
+  <label class="payment-card d-flex gap-3 mb-3">
+    <input type="radio" name="pagoMetodo" value="tarjeta">
+    <div>
+      <div class="fw-bold">Tarjeta al contado</div>
+      <div class="text-muted small">
+        Pago con tarjeta de crédito o débito.
+      </div>
+      <div class="mt-2 d-flex gap-2">
+        <span class="card-badge">Visa</span>
+        <span class="card-badge">Mastercard</span>
+        <span class="card-badge">Amex</span>
+      </div>
+    </div>
+  </label>
+
+  <label class="payment-card d-flex gap-3 mb-3">
+    <input type="radio" name="pagoMetodo" value="transferencia" checked>
+    <div>
+      <div class="fw-bold">Transferencia bancaria</div>
+      <div class="text-muted small">
+        Realiza tu pago por transferencia.
+      </div>
+    </div>
+  </label>
+
+</div>
 
             <div class="col-md-6">
               <label class="form-label">¿Desea factura? *</label>

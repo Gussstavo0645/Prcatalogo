@@ -20,6 +20,8 @@
   @if($items->count() > 0)
     <div class="products-overlay">
       @foreach($items as $prod)
+
+   
       @continue(!empty($prod->is_combo_child))
 
      
@@ -55,7 +57,9 @@
 
           <div class="p-code">Código: {{ $prod->display_code ?? $prod->code }}</div>
           <div class="p-name">{{ $prod->name }}</div>
-          <div class="p-price">Q {{ number_format($prod->price, 2) }}</div>
+          <div class="p-price">
+  Q {{ number_format((float)($prod->price ?? $prod->combo_price ?? $prod->Precventa ?? 0), 2) }}
+</div>
 
       
           <button
@@ -66,7 +70,7 @@
               code: '{{ $prod->code }}',
               color: '{{ $prod->color }}',
               name: @js($prod->name),
-              price: {{ (float) $prod->price }},
+              price: {{ (float)($prod->price ?? $prod->combo_price ?? $prod->Precventa ?? 0) }},
               qty: {{ (int) ($prod->quantity ?? 1) }},
               img: '{{ $img }}'
             })"

@@ -21,6 +21,8 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'role',
+        'store_id',
     ];
 
     /**
@@ -45,4 +47,19 @@ class User extends Authenticatable
             'password' => 'hashed',
         ];
     }
+
+    public function store()
+{
+    return $this->belongsTo(\App\Models\Store::class, 'store_id');
+}
+
+public function isAdmin()
+{
+    return $this->role === 'admin';
+}
+
+public function isStoreAdmin()
+{
+    return $this->role === 'store_admin';
+}
 }

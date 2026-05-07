@@ -16,6 +16,11 @@ class PedidoItem extends Model
         'quantity',
         'price',
         'subtotal',
+        'is_combo_component',
+        'combo_code',
+        'combo_color',
+        'combo_name',
+        'combo_group',
     ];
 
     public function pedido()

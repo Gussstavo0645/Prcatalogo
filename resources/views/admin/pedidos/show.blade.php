@@ -25,13 +25,26 @@
 
                 <div class="col-md-4">
                     <strong>Nombre:</strong><br>
-                    {{ $pedido->nombre_cliente }}
+                    {{ $pedido->Nombre }}
                 </div>
 
                 <div class="col-md-4">
-                    <strong>Teléfono:</strong><br>
-                    {{ $pedido->telefono_cliente }}
-                </div>
+    <strong>Teléfono:</strong><br>
+    {{ $pedido->Telefono }}
+</div>
+
+<div class="col-md-4">
+    <strong>Tienda:</strong><br>
+    @if($pedido->store)
+        {{ $pedido->store->name }} <br>
+        <small class="text-muted">
+            WhatsApp: {{ $pedido->store->whatsapp_number }}
+        </small>
+    @else
+        <span class="text-danger">Sin tienda</span>
+    @endif
+</div>
+                
 
                 <div class="col-md-4">
                     <strong>Estado:</strong><br>
@@ -85,48 +98,88 @@
                     </tr>
                 </thead>
 
+@php
+$itemsAgrupados = $pedido->items->groupBy(function ($item) {
+    return $item->combo_group ?: 'normal_' . $item->id;
+});
+@endphp
+
                 <tbody>
-                    @foreach($pedido->items as $item)
-                        <tr>
-                            <td>
-                                @if(!empty($item->product_code))
-                                    <img
-                                        src="{{ route('catalog.product.image', ['code' => $item->product_code, 'color' => $item->product_color]) }}"
-                                        width="60"
-                                        class="rounded"
-                                        style="object-fit:contain;background:#fff;"
-                                        onerror="this.src='https://via.placeholder.com/60x60?text=Sin+foto';"
-                                    >
-                                @endif
-                            </td>
+                    @foreach($itemsAgrupados as $grupo => $items)
 
-                            <td>
-                                {{ $item->product_name ?? 'Producto no disponible' }}
-                            </td>
+    @php
+        $primero = $items->first();
+    @endphp
 
-                            <td>
-                                {{ $item->product_code ?? '-' }}
-                            </td>
+    {{-- 🔥 SI ES COMBO --}}
+    @if($primero->is_combo_component)
 
-                            <td>
-                                {{ $item->product_color ?? '-' }}
-                            </td>
+        <tr style="background:#e9f3ff; font-weight:bold;">
+            <td colspan="7">
+                🧩 {{ $primero->combo_name }}
+            </td>
+        </tr>
 
-                            <td>
-                                {{ $item->quantity }}
-                            </td>
+        @foreach($items as $item)
 
-                            <td>
-                                Q {{ number_format($item->price, 2) }}
-                            </td>
+     @php
+  $code = trim((string) $item->product_code);
+  $color = trim((string) $item->product_color);
+@endphp
 
-                            <td>
-                                <strong>
-                                    Q {{ number_format($item->subtotal, 2) }}
-                                </strong>
-                            </td>
-                        </tr>
-                    @endforeach
+<tr>
+    <td>
+<img
+  src="{{ url('/catalogo/producto-thumb/'.$code.'/'.$color) }}"
+  width="60"
+  class="rounded"
+  style="object-fit:contain;background:#fff;"
+  onerror="this.onerror=null;this.src='https://via.placeholder.com/60x60?text=Sin+foto';"
+>
+                </td>
+
+                <td>{{ $item->product_name }}</td>
+                <td>{{ $item->product_code }}</td>
+                <td>{{ $item->product_color }}</td>
+                <td>{{ $item->quantity }}</td>
+                <td>Q {{ number_format($item->price, 2) }}</td>
+                <td><strong>Q {{ number_format($item->subtotal, 2) }}</strong></td>
+            </tr>
+        @endforeach
+
+    {{-- 🔹 PRODUCTO NORMAL --}}
+    @else
+
+        @foreach($items as $item)
+
+          @php
+  $code = trim((string) $item->product_code);
+  $color = trim((string) $item->product_color);
+@endphp
+
+<tr>
+    <td>
+<img
+  src="{{ url('/catalogo/producto-thumb/'.$code.'/'.$color) }}"
+  width="60"
+  class="rounded"
+  style="object-fit:contain;background:#fff;"
+  onerror="this.onerror=null;this.src='https://via.placeholder.com/60x60?text=Sin+foto';"
+>
+                </td>
+
+                <td>{{ $item->product_name }}</td>
+                <td>{{ $item->product_code }}</td>
+                <td>{{ $item->product_color }}</td>
+                <td>{{ $item->quantity }}</td>
+                <td>Q {{ number_format($item->price, 2) }}</td>
+                <td><strong>Q {{ number_format($item->subtotal, 2) }}</strong></td>
+            </tr>
+        @endforeach
+
+    @endif
+
+@endforeach
                 </tbody>
             </table>
         </div>

@@ -785,7 +785,8 @@
 
 .tooltip {
     position: absolute;
-    right: 70px;
+    left: 70px;
+    right: auto;
     background: #000;
     color: #fff;
     padding: 5px 10px;
@@ -893,4 +894,34 @@
   height: auto;          /* mantiene proporción */
   object-fit: contain;   /* NO corta la imagen */
   border-radius: 15px;
+}
+
+/* pasarela de pagos  */
+
+.payment-card{
+  border: 1px solid #ddd;
+  border-radius: 12px;
+  padding: 16px;
+  cursor: pointer;
+  background: #fff;
+  transition: .2s ease;
+}
+
+.payment-card:hover{
+  border-color: #0d6efd;
+  box-shadow: 0 4px 12px rgba(0,0,0,.05);
+}
+
+.payment-card input[type="radio"]{
+  transform: scale(1.15);
+  margin-top: 4px;
+}
+
+.card-badge{
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  background: #fff;
 }

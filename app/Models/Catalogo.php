@@ -4,11 +4,13 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
+use App\Models\Store;
 
 class Catalogo extends Model
 {
     protected $table = 'catalogs';
-    protected $fillable = ['title','slug','description','is_public','type','public_token','mesyope','tipo','tipocatalogo',];
+    protected $fillable = ['title','slug','description','is_public','type','public_token','mesyope','tipo','tipocatalogo', 
+  ];
 
     protected static function booted()
     {
@@ -58,7 +60,8 @@ class Catalogo extends Model
     ->orderBy('catalog_products.position');            //  luego por posicion
     }
 
-  
-
-
+public function tiendas()
+{
+    return $this->belongsToMany(Store::class, 'catalog_store', 'catalog_id', 'store_id');
+}
 }

@@ -117,9 +117,9 @@
       <div class="row g-3 align-items-end">
 
         <div class="col-md-4">
-  <label class="form-label fw-bold">Seleccionar catálogo</label>
+  <label class="form-label fw-bold">Catálogo Existente</label>
   <select name="catalog" class="form-select">
-    <option value="">-- Crear nuevo catálogo --</option>
+    <option value="">Seleccionar Catàtalogo</option>
     @foreach($catalogs as $c)
       <option value="{{ $c->id }}" {{ request('catalog') == $c->id ? 'selected' : '' }}>
         {{ $c->title }}
@@ -200,8 +200,63 @@
           <button class="btn btn-success">Crear</button>
         </div>
       </div>
+</form>
+<hr>
 
-    </form>
+@if($catalog)
+
+<form action="{{ route('admin.catalogos.tiendas.sync', $catalog->id) }}" method="POST">
+  @csrf
+
+  <div class="alert alert-light border mb-3">
+  <strong>Tiendas asignadas:</strong>
+
+  @if($catalog->tiendas->count())
+    <div class="small text-success">
+      {{ $catalog->tiendas->pluck('name')->join(', ') }}
+    </div>
+  @else
+    <div class="small text-danger">
+      ⚠ Este catálogo aún no tiene tiendas
+    </div>
+  @endif
+</div>
+  <label class="form-label fw-bold">Seleccionar tiendas para este catálogo</label>
+
+  @foreach($tiendas as $tienda)
+    <div class="form-check">
+      <input 
+        class="form-check-input"
+        type="checkbox"
+        name="tiendas[]"
+        value="{{ $tienda->id }}"
+        id="tienda{{ $tienda->id }}"
+        {{ $catalog->tiendas->contains($tienda->id) ? 'checked' : '' }}
+      >
+      <label class="form-check-label" for="tienda{{ $tienda->id }}">
+        {{ $tienda->name }}
+      </label>
+    </div>
+  @endforeach
+
+  <button class="btn btn-primary mt-3">
+    Guardar tiendas para este catálogo
+  </button>
+@if(!$catalog->tiendas->count())
+  <div class="text-danger mt-2">
+    ⚠ Debes asignar al menos una tienda antes de publicar
+  </div>
+@endif
+</form>
+
+@else
+
+<div class="alert alert-info mb-0">
+  Primero crea o selecciona un catálogo para asignar tiendas.
+</div>
+
+
+@endif
 
   </div>
 </div>
@@ -270,7 +325,6 @@
           @else
 
             {{-- FILTRO GENERAL --}}
-            {{-- FILTRO GENERAL --}}
 <form method="GET"
       action="{{ route('admin.catalogs.products.search') }}"
       class="mb-4"
@@ -281,9 +335,6 @@
 
   <div class="row g-3 align-items-end">
    
-
-    
-
     <div class="col-md-2">
       <label class="form-label fw-bold">Filtrar por página</label>
       <input

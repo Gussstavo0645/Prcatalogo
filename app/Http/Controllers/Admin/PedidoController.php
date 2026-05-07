@@ -8,36 +8,54 @@ use App\Models\Pedido;
 
 class PedidoController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $pedidos = Pedido::withCount('items')
-            ->orderBy('created_at', 'desc')
-            ->paginate(10);
+        $user = $request->user();
 
-            return view('admin.pedidos.index', compact('pedidos'));
+        $query = Pedido::with('store')
+            ->withCount('items')
+            ->orderBy('created_at', 'desc');
+
+        if ($user->role !== 'admin_general') {
+            $query->where('store_id', $user->store_id);
+        }
+
+        $pedidos = $query->paginate(10);
+
+        return view('admin.pedidos.index', compact('pedidos'));
     }
-    //MOSTRAR UN PEDIDO ESPECIFICO
-     
-    public function show(Pedido $pedido)
-    {
-        $pedido ->load('items');
 
-        return view('admin.pedidos.show',compact('pedido'));
+    // MOSTRAR UN PEDIDO ESPECIFICO
+    public function show(Request $request, Pedido $pedido)
+    {
+        $user = $request->user();
+
+        if ($user->role !== 'admin_general' && $pedido->store_id != $user->store_id) {
+            abort(403, 'No tienes permiso para ver este pedido.');
+        }
+
+        $pedido->load(['items', 'store']);
+
+        return view('admin.pedidos.show', compact('pedido'));
     }
 
     // CAMBIAR ESTADO
-
     public function updateEstado(Request $request, Pedido $pedido)
     {
-      $request->validate([
+        $user = $request->user();
+
+        if ($user->role !== 'admin_general' && $pedido->store_id != $user->store_id) {
+            abort(403, 'No tienes permiso para cambiar este pedido.');
+        }
+
+        $request->validate([
             'status' => 'required|in:pendiente,confirmado,enviado,entregado,cancelado'
         ]);
 
         $pedido->update([
             'status' => $request->status
         ]);
-        
-        return back()->with('success', 'Estado actualizado');
 
+        return back()->with('success', 'Estado actualizado');
     }
 }

@@ -58,11 +58,11 @@
                             </td>
 
                             <td>
-                                {{ $pedido->nombre_cliente }}
+                                {{ $pedido->Nombre }}
                             </td>
 
                             <td>
-                                {{ $pedido->telefono_cliente }}
+                                {{ $pedido->Telefono }}
                             </td>
 
                             <td>
@@ -117,7 +117,7 @@
 
                             <td>
 
-                                {{ $pedido->created_at->format('d/m/Y H:i') }}
+                              {{ $pedido->created_at->format('d/m/Y h:i A') }}
 
                             </td>
 
