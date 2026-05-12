@@ -31,18 +31,32 @@ class CatalogComboController extends Controller
             'items.*.quantity' => 'required|integer|min:1',
         ]);
 
-        $comboCode = trim((string) $data['combo_code']);
-        $comboColor = trim((string) $data['combo_color']);
+    $comboCode = trim((string) $data['combo_code']);
+$comboColor = trim((string) $data['combo_color']);
 
-        $comboInvQuery = DB::connection('admin_ml')
-            ->table('inventario as i')
-            ->where('i.Codprod', $comboCode)
-            ->where('i.mesyope', '04/2026')
-            ->where('i.tipocatalogo', 'N');
+$mes = trim((string) $catalog->mesyope);
+$tipo = trim((string) $catalog->tipocatalogo);
+
+if ($mes === '') {
+    return back()->withInput()->withErrors([
+        'combo_code' => 'El catálogo no tiene MESOPE configurado.',
+    ]);
+}
+
+      $comboInvQuery = DB::connection('admin_ml')
+    ->table('inventario as i')
+    ->whereRaw('TRIM(i.Codprod) = ?', [$comboCode])
+    ->whereRaw('TRIM(i.mesyope) = ?', [$mes]);
+
+if ($tipo !== '') {
+    $comboInvQuery->whereRaw('TRIM(i.tipocatalogo) = ?', [$tipo]);
+}
 
         if ($comboColor !== '') {
-            $comboInvQuery->where('i.color', $comboColor);
-        }
+    $comboInvQuery->whereRaw('TRIM(i.color) = ?', [$comboColor]);
+}
+
+
 
         $comboInv = $comboInvQuery->select([
             'i.Codprod as code',
@@ -63,8 +77,8 @@ class CatalogComboController extends Controller
             $imagePath = $request->file('image')->store('catalog-combos', 'public');
         }
 
-        DB::transaction(function () use ($catalog, $data, $comboInv, $comboCode, $comboColor, $imagePath) {
-            $combo = CatalogCombo::create([
+DB::transaction(function () use ($catalog, $data, $comboInv, $comboCode, $comboColor, $imagePath, $mes, $tipo) {
+    $combo = CatalogCombo::create([
                 'catalog_id' => $catalog->id,
                 'code' => $comboCode,
                 'color' => $comboColor,
@@ -80,7 +94,7 @@ class CatalogComboController extends Controller
                 $productColor = trim((string) ($row['product_color'] ?? ''));
                 $quantity = (int) $row['quantity'];
 
-              $productoInvQuery = DB::connection('admin_ml')
+     $productoInvQuery = DB::connection('admin_ml')
     ->table('inventario as i')
     ->whereRaw('TRIM(i.Codprod) = ?', [$productCode]);
 

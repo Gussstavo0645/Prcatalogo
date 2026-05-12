@@ -27,6 +27,40 @@
     @endforeach
 
   </select>
+
+  <input type="hidden" id="catalog_id" value="{{ $catalog->id }}">
+
+</div>
+
+<div class="consulta-acumulado-card mb-4">
+  <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
+    <div>
+      <span class="consulta-badge">🎁 Premios del mes</span>
+      <h5 class="mb-1">Consulta tu acumulado</h5>
+      <p class="text-muted mb-0">
+        Ingresa tu código de cliente para ver cuánto llevas acumulado este mes.
+      </p>
+    </div>
+
+    <div class="consulta-acumulado-form">
+      <input 
+        type="text" 
+        id="consultaCodCliente" 
+        class="form-control" 
+        placeholder="Ej: 1-11, OFZONA10"
+      >
+
+      <button 
+        type="button" 
+        class="btn btn-primary" 
+        id="btnConsultarAcumulado"
+      >
+        Consultar
+      </button>
+    </div>
+  </div>
+
+  <div id="resultadoAcumulado" class="mt-3"></div>
 </div>
 
   @if(!empty($catalog->description))
@@ -187,7 +221,6 @@
   </div>
 </div>
 
-
         {{-- STEP 2 --}}
         <div class="wizard-step" id="step2">
           <h6 class="mb-3">Información de entrega</h6>
@@ -272,76 +305,7 @@
   </div>
 </div>
 
-<script>
-document.addEventListener('DOMContentLoaded', function () {
 
-    let pasoActual = 1;
-
-    const btnBack = document.getElementById('btnBack');
-    const btnNext = document.getElementById('btnNext');
-    const btnConfirm = document.getElementById('btnConfirm');
-
-    const steps = document.querySelectorAll('.wizard-step');
-    const pills = document.querySelectorAll('.step-pill');
-
-    if (!btnBack || !btnNext || !btnConfirm) {
-        console.error('No se encontraron los botones del wizard.');
-        return;
-    }
-
-    function mostrarPaso(paso) {
-        steps.forEach(step => {
-            step.classList.remove('active');
-        });
-
-        const stepActual = document.getElementById('step' + paso);
-        if (stepActual) {
-            stepActual.classList.add('active');
-        }
-
-        pills.forEach(pill => {
-            const numero = parseInt(pill.dataset.step);
-
-            pill.classList.remove('active', 'done');
-
-            if (numero < paso) {
-                pill.classList.add('done');
-            }
-
-            if (numero === paso) {
-                pill.classList.add('active');
-            }
-        });
-
-        btnBack.classList.toggle('d-none', paso === 1);
-        btnNext.classList.toggle('d-none', paso === 3);
-        btnConfirm.classList.toggle('d-none', paso !== 3);
-    }
-
-    btnNext.addEventListener('click', function () {
-        if (pasoActual < 3) {
-            pasoActual++;
-            mostrarPaso(pasoActual);
-        }
-    });
-
-    btnBack.addEventListener('click', function () {
-        if (pasoActual > 1) {
-            pasoActual--;
-            mostrarPaso(pasoActual);
-        }
-    });
-
-    btnConfirm.addEventListener('click', function () {
-        alert('Pedido confirmado correctamente.');
-
-        // Después aquí conectas tu guardado real:
-        // finalizarPedido();
-    });
-
-    mostrarPaso(pasoActual);
-});
-</script>
 
 @endsection
 

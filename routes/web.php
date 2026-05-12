@@ -32,7 +32,7 @@ Route::get('/c/{slug}/bloque', [CatalogoController::class, 'pagesBlock'])
 
  Route::get('/clientes/detectar/{codcliente}', [ClientePublicController::class, 'detectar'])
     ->name('clientes.detectar');
-
+ 
 Route::post('/pedido/finalizar', [PedidoPublicController::class, 'store'])
     ->name('pedido.finalizar');
 
@@ -50,6 +50,9 @@ Route::get('/catalogo/producto-thumb/{code}/{color?}', [CatalogoController::clas
 
 Route::get('/product-image/{product}', [CatalogoController::class, 'productImage'])
     ->name('admin.products.image');
+
+    Route::get('/clientes/acumulado/{codcliente}', [ClientePublicController::class, 'acumulado'])
+    ->name('clientes.acumulado');
 
 Route::view('/quienes-somos', 'catalogo.quisomos')
     ->name('catalogo.quisomos');

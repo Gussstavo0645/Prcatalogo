@@ -386,9 +386,11 @@ function showCartFab(){
 ========================== */
 
 let clienteDetectado = false;
+window.esClienteNoInscrito = false;
 
 function bloquearCamposCliente() {
-  clienteDetectado = false;
+ clienteDetectado = false;
+  window.esClienteNoInscrito = false;
 
   const campos = ['cliNombre', 'cliTelefono', 'cliNit', 'cliDpi', 'cliCorreo'];
 
@@ -466,6 +468,15 @@ document.getElementById('cliTelefono').value = '';
 document.getElementById('cliNit').value = '';
 document.getElementById('cliDpi').value = '';
 document.getElementById('cliCorreo').value = '';
+
+window.esClienteNoInscrito = [
+  'cliente_no_inscrito',
+  'no_inscrito',
+  'bodega'
+].includes(data.tipo);
+
+console.log('Tipo cliente:', data.tipo);
+console.log('Cliente no inscrito:', window.esClienteNoInscrito);
 
 desbloquearCamposCliente();
 document.getElementById('cliNombre')?.focus();
@@ -705,25 +716,55 @@ async function submitOrder() {
     alert('Carrito vacío');
     return;
   }
+const totalCarrito = cart.reduce((sum, item) => {
+  return sum + (Number(item.price || 0) * Number(item.qty || 1));
+}, 0);
 
+if (!window.esClienteNoInscrito && totalCarrito < 225) {
+  const modalEl = document.getElementById('checkoutModal');
+  const modalInstance = bootstrap.Modal.getInstance(modalEl);
 
+  modalInstance?.hide();
 
-const storeSelect = document.getElementById('store_id');
-const store_id = storeSelect ? storeSelect.value : null;
+  document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
+  document.body.classList.remove('modal-open');
+  document.body.style.removeProperty('padding-right');
 
-if (!store_id){
-  alert ('Debes seleccionar una tienda');
-  return
+  await Swal.fire({
+    icon: 'warning',
+    title: 'Pedido mínimo',
+    html: `
+      <p>El pedido mínimo es de <b>Q225.00</b>.</p>
+      <p>Tu carrito actual es de <b>Q${totalCarrito.toFixed(2)}</b>.</p>
+      <p>Agrega más productos para continuar.</p>
+    `,
+    confirmButtonText: 'OK',
+    confirmButtonColor: '#C2185B'
+  });
+
+  return;
 }
+const storeSelect = document.getElementById('store_id');
+const store_id = storeSelect ? storeSelect.value : '';
 
-const payload = {
-  CodCliente: document.getElementById('cliCodCliente')?.value.trim() || '',
-  Nombre: document.getElementById('cliNombre')?.value.trim() || '',
-  Telefono: document.getElementById('cliTelefono')?.value.trim() || '',
-  nit: document.getElementById('cliNit')?.value.trim() || '',
-  dpi: document.getElementById('cliDpi')?.value.trim() || '',
-  correo: document.getElementById('cliCorreo')?.value.trim() || '',
+if (!store_id) {
+  await Swal.fire({
+    icon: 'warning',
+    title: 'Seleccione una tienda',
+    text: 'Debes seleccionar una tienda antes de confirmar el pedido.',
+    confirmButtonColor: '#C2185B'
+  });
+  return;
+}
+ const payload = {
+    catalog_id: document.getElementById('catalog_id')?.value || '',
 
+    CodCliente: document.getElementById('cliCodCliente')?.value.trim() || '',
+    Nombre: document.getElementById('cliNombre')?.value.trim() || '',
+    Telefono: document.getElementById('cliTelefono')?.value.trim() || '',
+    nit: document.getElementById('cliNit')?.value.trim() || '',
+    dpi: document.getElementById('cliDpi')?.value.trim() || '',
+    correo: document.getElementById('cliCorreo')?.value.trim() || '',
 
     direccion: document.getElementById('entDireccion')?.value.trim() || '',
     ciudad: document.getElementById('entCiudad')?.value.trim() || '',
@@ -735,15 +776,16 @@ const payload = {
     store_id: store_id,
 
     items: cart.map(item => ({
-      code: item.code,
-      color: item.color,
-      name: item.name,
-      quantity: Number(item.qty),
-      price: Number(item.price)
+        code: String(item.code ?? ''),
+        color: item.color == null ? '' : String(item.color),
+        name: String(item.name ?? 'Producto'),
+        quantity: Number(item.qty || 1),
+        price: Number(item.price || 0)
     }))
-  };
+};
 
   const btnConfirm = document.getElementById('btnConfirm');
+
   if (btnConfirm) {
     btnConfirm.disabled = true;
     btnConfirm.textContent = 'Enviando...';
@@ -751,6 +793,8 @@ const payload = {
 
   try {
     const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+
+    console.log('PAYLOAD PEDIDO:', payload);
 
     const res = await fetch('/pedido/finalizar', {
       method: 'POST',
@@ -765,109 +809,157 @@ const payload = {
 
     const data = await res.json();
 
-   if (!res.ok) {
-  console.error('Error backend:', data);
+    if (!res.ok) {
+      console.error('Error backend:', data);
 
-  await Swal.fire({
-    icon: 'error',
-    title: 'Error',
-    text: data.message || 'No se pudo enviar el pedido',
-    confirmButtonColor: '#C2185B'
-  });
+      await Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: data.message || 'Error al crear el pedido',
+        confirmButtonColor: '#C2185B'
+      });
 
-  return;
-}
+      return;
+    }
 
-let total = 0;
-let detalle = '';
+ let premioHtml = '';
 
+if (data.premio) {
+  const acumulado = Number(data.premio.total_acumulado || 0);
+  const pedidoActual = Number(data.premio.total_pedido_actual || 0);
+  const proyectado = Number(data.premio.total_proyectado || acumulado);
+  const faltaC1 = Number(data.premio.faltante_c1 || 0);
 
+  if (data.premio.cliente_no_inscrito || window.esClienteNoInscrito) {
 
-cart.forEach((item, i) => {
-  const qty = Number(item.qty || 1);
-  const price = Number(item.price || 0);
-  const subtotal = qty * price;
-  total += subtotal;
-
-  const code = item.code || '';
-  const color = item.color ? `-${item.color}` : '';
-  const name = item.name || 'Producto';
-
-  detalle += `${i + 1}. ${name} (${code}${color}) x${qty} - Q ${subtotal.toFixed(2)}\n`;
-});
-
-
-const selectedOption = storeSelect.options[storeSelect.selectedIndex];
-
-const store = {
-  name: selectedOption.textContent.trim(),
-  whatsapp: selectedOption.dataset.whatsapp || ''
-};
-
-const mensaje = [
-  'Hola, se ha creado un nuevo pedido:',
-  '',
-  `Tienda: ${store.name || 'Tienda'}`,
-  `Dirección tienda: ${store.address || 'No especificada'}`,
-  `Horario: ${store.hours || 'No especificado'}`,
-  `Responsable: ${store.manager || 'No especificado'}`,
-  '',
-  `Código cliente: ${payload.CodCliente}`,
-`Cliente: ${payload.Nombre}`,
-`Teléfono: ${payload.Telefono}`,
-`NIT: ${payload.nit || 'No especificado'}`,
-`DPI: ${payload.dpi || 'No especificado'}`,
-  `Dirección entrega: ${payload.direccion}`,
-  `Ciudad: ${payload.ciudad}`,
-  `Entrega: ${payload.entrega_tipo}`,
-  `Método de pago: ${payload.pago_metodo}`,
-  `¿Factura?: ${payload.requiere_factura}`,
-  '',
-  'Productos:',
-  detalle,
-  `Total: Q ${total.toFixed(2)}`
-].join('\n');
-
-
-clearCart();
-
-const modalEl = document.getElementById('checkoutModal');
-const modalInstance = bootstrap.Modal.getInstance(modalEl);
-modalInstance?.hide();
-
-await Swal.fire({
-  icon: 'success',
-  title: 'Pedido recibido',
-  text: 'Ahora te llevaremos a WhatsApp para enviarlo.',
-  confirmButtonText: 'Continuar',
-  confirmButtonColor: '#C2185B'
-});
-
-
-clearCart();
-resetCheckoutForm();
-showStep(1);
-
-const numeroEmpresa = (store.whatsapp || '50237553802').replace(/\D/g, '');
-const waUrl = `https://wa.me/${numeroEmpresa}?text=${encodeURIComponent(mensaje)}`;
-window.open(waUrl, '_blank');
-
-} catch (error) {
-  console.error('Error enviando pedido:', error);
-
-  await Swal.fire({
-    icon: 'error',
-    title: 'Error',
-    text: 'Ocurrió un error al enviar el pedido',
-    confirmButtonColor: '#C2185B'
-  });
-} finally {
-  if (btnConfirm) {
-    btnConfirm.disabled = false;
-    btnConfirm.textContent = 'Confirmar pedido';
+    premioHtml = `
+      <hr>
+      <div style="text-align:left">
+        <h5>👤 Cliente no inscrito</h5>
+        <p><b>Este pedido fue recibido correctamente.</b></p>
+        <p>No tiene mínimo de compra.</p>
+        <p>No acumula compras y no aplica a premios.</p>
+      </div>
+    `;
+  } else if (data.premio.aplica && data.premio.premio) {
+    premioHtml = `
+      <hr>
+      <div style="text-align:left">
+        <h5>🎁 Premio disponible</h5>
+        <p><b>Con este pedido, al ser confirmado, aplicas a premio ${data.premio.premio.codtproducto}.</b></p>
+        <p><b>Acumulado confirmado:</b> Q${acumulado.toFixed(2)}</p>
+        <p><b>Pedido actual:</b> Q${pedidoActual.toFixed(2)}</p>
+        <p><b>Acumulado al confirmar:</b> Q${proyectado.toFixed(2)}</p>
+        <p><b>Premio:</b> ${data.premio.premio.descripcion}</p>
+        <p style="font-size:13px;color:#666">
+          La tienda confirmará la entrega del premio.
+        </p>
+      </div>
+    `;
+  } else {
+    premioHtml = `
+      <hr>
+      <div style="text-align:left">
+        <h5>🎁 Acumulado de premio</h5>
+        <p><b>Acumulado confirmado del mes:</b> Q${acumulado.toFixed(2)}</p>
+        <p>${data.premio.mensaje}</p>
+        <p><b>Te faltan:</b> Q${faltaC1.toFixed(2)} para llegar al premio C1.</p>
+      </div>
+    `;
   }
 }
+
+    let total = 0;
+    let detalle = '';
+
+    cart.forEach((item, i) => {
+      const qty = Number(item.qty || 1);
+      const price = Number(item.price || 0);
+      const subtotal = qty * price;
+      total += subtotal;
+
+      const code = item.code || '';
+      const color = item.color ? `-${item.color}` : '';
+      const name = item.name || 'Producto';
+
+      detalle += `${i + 1}. ${name} (${code}${color}) x${qty} - Q ${subtotal.toFixed(2)}\n`;
+    });
+
+    const selectedOption = storeSelect.options[storeSelect.selectedIndex];
+
+    const store = {
+      name: selectedOption.textContent.trim(),
+      whatsapp: selectedOption.dataset.whatsapp || '',
+      address: selectedOption.dataset.address || '',
+      hours: selectedOption.dataset.hours || '',
+      manager: selectedOption.dataset.manager || ''
+    };
+
+    const mensaje = [
+      'Hola, se ha creado un nuevo pedido:',
+      '',
+      `Tienda: ${store.name || 'Tienda'}`,
+      `Dirección tienda: ${store.address || 'No especificada'}`,
+      `Horario: ${store.hours || 'No especificado'}`,
+      `Responsable: ${store.manager || 'No especificado'}`,
+      '',
+      `Código cliente: ${payload.CodCliente}`,
+      `Cliente: ${payload.Nombre}`,
+      `Teléfono: ${payload.Telefono}`,
+      `NIT: ${payload.nit || 'No especificado'}`,
+      `DPI: ${payload.dpi || 'No especificado'}`,
+      `Dirección entrega: ${payload.direccion}`,
+      `Ciudad: ${payload.ciudad}`,
+      `Entrega: ${payload.entrega_tipo}`,
+      `Método de pago: ${payload.pago_metodo}`,
+      `¿Factura?: ${payload.requiere_factura}`,
+      '',
+      'Productos:',
+      detalle,
+      `Total: Q ${total.toFixed(2)}`
+    ].join('\n');
+
+    const modalEl = document.getElementById('checkoutModal');
+    const modalInstance = bootstrap.Modal.getInstance(modalEl);
+    modalInstance?.hide();
+
+    await Swal.fire({
+      icon: 'success',
+      title: 'Pedido recibido',
+      html: `
+        <p>Ahora te llevaremos a WhatsApp para enviarlo.</p>
+        ${premioHtml}
+      `,
+      confirmButtonText: 'Continuar',
+      confirmButtonColor: '#C2185B'
+    });
+
+    clearCart();
+    resetCheckoutForm();
+    showStep(1);
+
+    const numeroEmpresa = (store.whatsapp || '50237553802').replace(/\D/g, '');
+    const waUrl = `https://wa.me/${numeroEmpresa}?text=${encodeURIComponent(mensaje)}`;
+    window.open(waUrl, '_blank');
+
+  } catch (error) {
+    console.error('Error enviando pedido:', error);
+
+    await Swal.fire({
+      icon: 'error',
+      title: 'Error',
+      text: 'Ocurrió un error al enviar el pedido',
+      confirmButtonColor: '#C2185B'
+    });
+
+  } finally {
+    if (btnConfirm) {
+      btnConfirm.disabled = false;
+      btnConfirm.textContent = 'Confirmar pedido';
+    }
+  }
 }
+
 
 function resetCheckoutForm() {
   document.getElementById('cliCodCliente') && (document.getElementById('cliCodCliente').value = '');
@@ -1206,4 +1298,164 @@ document.addEventListener('DOMContentLoaded', function () {
   updateCartBadge();
 
  
+});
+
+document.addEventListener('DOMContentLoaded', function () {
+  const btn = document.getElementById('btnConsultarAcumulado');
+  const input = document.getElementById('consultaCodCliente');
+  const box = document.getElementById('resultadoAcumulado');
+
+  if (!btn || !input || !box) return;
+
+  btn.addEventListener('click', consultarAcumulado);
+
+  input.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') {
+      consultarAcumulado();
+    }
+  });
+
+  async function consultarAcumulado() {
+    const codcliente = input.value.trim();
+
+    if (!codcliente) {
+      box.innerHTML = `
+        <div class="alert alert-warning mb-0">
+          Ingresa tu código de cliente.
+        </div>
+      `;
+      input.focus();
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'Consultando...';
+
+    box.innerHTML = `
+      <div class="alert alert-info mb-0">
+        Consultando acumulado...
+      </div>
+    `;
+
+    try {
+      const res = await fetch(`/clientes/acumulado/${encodeURIComponent(codcliente)}`, {
+        headers: {
+          'Accept': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest'
+        }
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data.ok) {
+        box.innerHTML = `
+          <div class="alert alert-danger mb-0">
+            ${data.message || 'No se pudo consultar el acumulado.'}
+          </div>
+        `;
+        return;
+      }
+
+      if (data.tipo === 'cliente_no_inscrito') {
+        box.innerHTML = `
+          <div class="alert alert-info mb-0">
+            <b>Cliente no inscrito</b><br>
+            Este código no tiene mínimo de compra, pero no acumula compras ni aplica a premios.
+          </div>
+        `;
+        return;
+      }
+
+      const acumulado = Number(data.acumulado || 0);
+      const puntos = Number(data.puntos || 0);
+      const faltaC1 = Number(data.faltante_c1 || 0);
+      const faltaC2 = Number(data.faltante_c2 || 0);
+
+const mejorOpcion = data.mejor_opcion || null;
+
+let estadoPremio = '';
+let tituloTerceraTarjeta = 'Faltante para C1';
+let valorTerceraTarjeta = `Q${faltaC1.toFixed(2)}`;
+
+if (mejorOpcion) {
+  const c1 = Number(mejorOpcion.cantidad_c1 || 0);
+  const c2 = Number(mejorOpcion.cantidad_c2 || 0);
+  const usado = Number(mejorOpcion.monto_usado || 0);
+  const saldo = Number(mejorOpcion.saldo_restante || 0);
+  const faltaOtroC1 = Number(mejorOpcion.faltante_para_otro_c1 || 0);
+
+  let textoPremios = [];
+
+  if (c2 > 0) {
+    textoPremios.push(`${c2} premio${c2 > 1 ? 's' : ''} C2`);
+  }
+
+  if (c1 > 0) {
+    textoPremios.push(`${c1} premio${c1 > 1 ? 's' : ''} C1`);
+  }
+
+  tituloTerceraTarjeta = 'Canje recomendado';
+  valorTerceraTarjeta = textoPremios.join(' + ');
+
+  estadoPremio = `
+    <div class="alert alert-success mt-3 mb-0">
+      🎉 <b>Opción recomendada:</b> ${textoPremios.join(' + ')}<br>
+      <span>Usa: <b>Q${usado.toFixed(2)}</b></span><br>
+      <span>Saldo restante: <b>Q${saldo.toFixed(2)}</b></span><br>
+      <span>Faltante para otro C1: <b>Q${faltaOtroC1.toFixed(2)}</b></span>
+    </div>
+  `;
+} else {
+  estadoPremio = `
+    <div class="alert alert-warning mt-3 mb-0">
+      Aún no llega a premio. Le faltan <b>Q${faltaC1.toFixed(2)}</b> para llegar a C1.
+    </div>
+  `;
+}
+
+
+      box.innerHTML = `
+        <div class="acumulado-box">
+          <h5 class="mb-3">🎁 Acumulado del mes</h5>
+
+          <div class="acumulado-grid">
+            <div class="acumulado-item">
+              <span>Acumulado confirmado</span>
+              <strong>Q${acumulado.toFixed(2)}</strong>
+            </div>
+
+            <div class="acumulado-item">
+              <span>Puntos acumulados</span>
+              <strong>${puntos.toFixed(0)}</strong>
+            </div>
+
+            <div class="acumulado-item">
+  <span>${tituloTerceraTarjeta}</span>
+  <strong>${valorTerceraTarjeta}</strong>
+</div>
+          </div>
+
+         <div class="mt-3">
+  ${estadoPremio}
+</div>
+
+<p class="mt-2 mb-0 text-muted small">
+  Solo cuentan compras al contado confirmadas o entregadas del mes actual.
+</p>
+        </div>
+      `;
+
+    } catch (error) {
+      console.error(error);
+
+      box.innerHTML = `
+        <div class="alert alert-danger mb-0">
+          Ocurrió un error al consultar el acumulado.
+        </div>
+      `;
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Consultar';
+    }
+  }
 });
