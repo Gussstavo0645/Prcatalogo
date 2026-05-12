@@ -463,7 +463,7 @@ async function detectarCliente() {
   return;
 }
 
-   document.getElementById('cliNombre').value = '';
+   document.getElementById('cliNombre').value = data.cliente?.Nombre || '';
 document.getElementById('cliTelefono').value = '';
 document.getElementById('cliNit').value = '';
 document.getElementById('cliDpi').value = '';
@@ -616,7 +616,19 @@ if (modalEl) {
 
 showStep(1);
 
-document.getElementById('cliCodCliente') && (document.getElementById('cliCodCliente').value = '');
+const chkNoInscrito = document.getElementById('chkClienteNoInscrito');
+const codClienteInput = document.getElementById('cliCodCliente');
+const btnBuscarClienteCheckout = document.getElementById('btnBuscarCliente');
+
+if (chkNoInscrito) chkNoInscrito.checked = false;
+if (codClienteInput) {
+  codClienteInput.value = '';
+  codClienteInput.readOnly = false;
+}
+if (btnBuscarClienteCheckout) {
+  btnBuscarClienteCheckout.disabled = false;
+}
+
 bloquearCamposCliente();
 
   //  salir de fullscrren luego ed ir a pagar
@@ -677,12 +689,73 @@ document.addEventListener('DOMContentLoaded', function () {
   const btnConfirm = document.getElementById('btnConfirm');
     const btnBuscarCliente = document.getElementById('btnBuscarCliente');
   const cliCodCliente = document.getElementById('cliCodCliente');
+  const chkClienteNoInscrito = document.getElementById('chkClienteNoInscrito');
 
   btnBuscarCliente?.addEventListener('click', detectarCliente);
 
   cliCodCliente?.addEventListener('input', function () {
     bloquearCamposCliente();
   });
+
+  chkClienteNoInscrito?.addEventListener('change', async function () {
+  const codInput = document.getElementById('cliCodCliente');
+  const btnBuscar = document.getElementById('btnBuscarCliente');
+  const storeSelect = document.getElementById('store_id');
+  const storeId = storeSelect?.value || '';
+
+  if (this.checked) {
+    if (!storeId) {
+      alert('Primero debes seleccionar una tienda.');
+      this.checked = false;
+      return;
+    }
+
+    try {
+      const res = await fetch(`/clientes/no-inscrito/tienda/${encodeURIComponent(storeId)}`, {
+        headers: {
+          'Accept': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest'
+        }
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data.ok) {
+        alert(data.message || 'No se pudo obtener el código de cliente no inscrito.');
+        this.checked = false;
+        return;
+      }
+
+      if (codInput) {
+        codInput.value = data.codigo || '';
+        codInput.readOnly = true;
+      }
+
+      await detectarCliente();
+
+      if (btnBuscar) {
+        btnBuscar.disabled = true;
+      }
+
+    } catch (error) {
+      console.error('Error obteniendo cliente no inscrito:', error);
+      alert('Ocurrió un error al obtener el código de cliente no inscrito.');
+      this.checked = false;
+    }
+
+  } else {
+    if (codInput) {
+      codInput.value = '';
+      codInput.readOnly = false;
+    }
+
+    if (btnBuscar) {
+      btnBuscar.disabled = false;
+    }
+
+    bloquearCamposCliente();
+  }
+});
 
  btnNext?.addEventListener('click', function () {
   if (!validateStep(currentStep)) return;
@@ -863,7 +936,7 @@ if (data.premio) {
         <h5>🎁 Acumulado de premio</h5>
         <p><b>Acumulado confirmado del mes:</b> Q${acumulado.toFixed(2)}</p>
         <p>${data.premio.mensaje}</p>
-        <p><b>Te faltan:</b> Q${faltaC1.toFixed(2)} para llegar al premio C1.</p>
+        <p><b>Te faltan:</b> Q${faltaC1.toFixed(2)} para llegar al premio del Rango 1.</p>
       </div>
     `;
   }
@@ -962,6 +1035,15 @@ if (data.premio) {
 
 
 function resetCheckoutForm() {
+
+    const chkNoInscrito = document.getElementById('chkClienteNoInscrito');
+  const codClienteInput = document.getElementById('cliCodCliente');
+  const btnBuscarClienteReset = document.getElementById('btnBuscarCliente');
+
+  if (chkNoInscrito) chkNoInscrito.checked = false;
+  if (codClienteInput) codClienteInput.readOnly = false;
+  if (btnBuscarClienteReset) btnBuscarClienteReset.disabled = false;
+
   document.getElementById('cliCodCliente') && (document.getElementById('cliCodCliente').value = '');
   document.getElementById('cliNombre') && (document.getElementById('cliNombre').value = '');
   document.getElementById('cliTelefono') && (document.getElementById('cliTelefono').value = '');
@@ -1372,47 +1454,87 @@ document.addEventListener('DOMContentLoaded', function () {
       const faltaC2 = Number(data.faltante_c2 || 0);
 
 const mejorOpcion = data.mejor_opcion || null;
+const opcionesPremio = Array.isArray(data.opciones_premio) ? data.opciones_premio : [];
 
 let estadoPremio = '';
-let tituloTerceraTarjeta = 'Faltante para C1';
+let opcionesCanjeHtml = '';
+let tituloTerceraTarjeta = 'Faltante para Rango 1';
 let valorTerceraTarjeta = `Q${faltaC1.toFixed(2)}`;
 
-if (mejorOpcion) {
-  const c1 = Number(mejorOpcion.cantidad_c1 || 0);
-  const c2 = Number(mejorOpcion.cantidad_c2 || 0);
-  const usado = Number(mejorOpcion.monto_usado || 0);
-  const saldo = Number(mejorOpcion.saldo_restante || 0);
-  const faltaOtroC1 = Number(mejorOpcion.faltante_para_otro_c1 || 0);
+// Función para escribir bonito el texto de premios
+function textoDePremios(opcion) {
+  const c1 = Number(opcion.cantidad_c1 || 0);
+  const c2 = Number(opcion.cantidad_c2 || 0);
 
-  let textoPremios = [];
+  let textos = [];
 
   if (c2 > 0) {
-    textoPremios.push(`${c2} premio${c2 > 1 ? 's' : ''} C2`);
+    textos.push(`${c2} premio${c2 > 1 ? 's' : ''} del Rango 2`);
   }
 
   if (c1 > 0) {
-    textoPremios.push(`${c1} premio${c1 > 1 ? 's' : ''} C1`);
+    textos.push(`${c1} premio${c1 > 1 ? 's' : ''} del Rango 1`);
   }
 
+  return textos.join(' + ');
+}
+
+if (mejorOpcion) {
+  const usado = Number(mejorOpcion.monto_usado || 0);
+  const saldo = Number(mejorOpcion.saldo_restante || 0);
+  const faltaOtroC1 = Number(mejorOpcion.faltante_para_otro_c1 || 0);
+  const textoRecomendado = textoDePremios(mejorOpcion);
+
   tituloTerceraTarjeta = 'Canje recomendado';
-  valorTerceraTarjeta = textoPremios.join(' + ');
+  valorTerceraTarjeta = textoRecomendado;
 
   estadoPremio = `
     <div class="alert alert-success mt-3 mb-0">
-      🎉 <b>Opción recomendada:</b> ${textoPremios.join(' + ')}<br>
+      🎉 <b>Opción recomendada:</b> ${textoRecomendado}<br>
       <span>Usa: <b>Q${usado.toFixed(2)}</b></span><br>
       <span>Saldo restante: <b>Q${saldo.toFixed(2)}</b></span><br>
-      <span>Faltante para otro C1: <b>Q${faltaOtroC1.toFixed(2)}</b></span>
+      <span>Faltante para otro Premio del Rango 1: <b>Q${faltaOtroC1.toFixed(2)}</b></span>
     </div>
   `;
+
+  // Mostrar todas las opciones de canje
+  opcionesCanjeHtml = `
+    <div class="mt-3">
+      <h6 class="fw-bold mb-2">🎁 Todas tus opciones de canje</h6>
+
+      <div class="row g-2">
+        ${opcionesPremio.map((opcion, index) => {
+          const usadoOpcion = Number(opcion.monto_usado || 0);
+          const saldoOpcion = Number(opcion.saldo_restante || 0);
+          const textoOpcion = textoDePremios(opcion);
+
+          return `
+            <div class="col-md-6">
+              <div class="border rounded-3 p-3 bg-white h-100">
+                <div class="d-flex justify-content-between align-items-start gap-2">
+                  <b>${textoOpcion}</b>
+                  ${index === 0 ? '<span class="badge text-bg-success">Recomendada</span>' : ''}
+                </div>
+
+                <div class="small mt-2">
+                  <div>Usa: <b>Q${usadoOpcion.toFixed(2)}</b></div>
+                  <div>Saldo restante: <b>Q${saldoOpcion.toFixed(2)}</b></div>
+                </div>
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    </div>
+  `;
+
 } else {
   estadoPremio = `
     <div class="alert alert-warning mt-3 mb-0">
-      Aún no llega a premio. Le faltan <b>Q${faltaC1.toFixed(2)}</b> para llegar a C1.
+      Aún no llega a premio. Le faltan <b>Q${faltaC1.toFixed(2)}</b> para llegar a Rango 1.
     </div>
   `;
 }
-
 
       box.innerHTML = `
         <div class="acumulado-box">
@@ -1435,12 +1557,13 @@ if (mejorOpcion) {
 </div>
           </div>
 
-         <div class="mt-3">
+  <div class="mt-3">
   ${estadoPremio}
+  ${opcionesCanjeHtml}
 </div>
 
 <p class="mt-2 mb-0 text-muted small">
-  Solo cuentan compras al contado confirmadas o entregadas del mes actual.
+  Solo cuentan compras al contado confirmadas.
 </p>
         </div>
       `;

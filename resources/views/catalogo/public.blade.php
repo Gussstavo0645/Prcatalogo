@@ -180,18 +180,27 @@
 
   <div class="row g-2">
 
-    <div class="col-md-5">
-      <label class="form-label">Código de cliente *</label>
-      <div class="input-group">
-        <input type="text" class="form-control" id="cliCodCliente" placeholder="Ingrese su código">
-        <button type="button" class="btn btn-primary" id="btnBuscarCliente">
-          Buscar
-        </button>
-      </div>
-      <small id="clienteStatus" class="text-muted">
-        Ingrese su código para continuar.
-      </small>
-    </div>
+  <div class="col-md-5">
+  <label class="form-label">Código de cliente *</label>
+
+  <div class="input-group">
+    <input type="text" class="form-control" id="cliCodCliente" placeholder="Ingrese su código">
+    <button type="button" class="btn btn-primary" id="btnBuscarCliente">
+      Buscar
+    </button>
+  </div>
+
+  <small id="clienteStatus" class="text-muted d-block">
+    Ingrese su código para continuar.
+  </small>
+
+  <div class="form-check mt-2">
+    <input class="form-check-input" type="checkbox" id="chkClienteNoInscrito">
+    <label class="form-check-label" for="chkClienteNoInscrito">
+      Cliente no inscrito
+    </label>
+  </div>
+</div>
 
     <div class="col-md-7">
       <label class="form-label">Nombre *</label>

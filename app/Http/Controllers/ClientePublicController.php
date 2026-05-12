@@ -38,11 +38,11 @@ class ClientePublicController extends Controller
         }
 
         // 2. Si no está en bodega, buscar en clientes inscritos
-        $cliente = DB::connection('admin_ml')
-            ->table('clientes')
-->whereRaw('UPPER(TRIM(CodCliente)) = ?', [strtoupper($codcliente)])       
-     ->select('Codcliente')
-            ->first();
+       $cliente = DB::connection('admin_ml')
+    ->table('clientes')
+    ->whereRaw('UPPER(TRIM(CodCliente)) = ?', [strtoupper($codcliente)])
+    ->select('Codcliente', 'Nom1cliente', 'Ape1cliente')
+    ->first();
 
         if ($cliente) {
             return response()->json([
@@ -50,8 +50,9 @@ class ClientePublicController extends Controller
                 'message' => 'Código de cliente inscrito válido. Aplica mínimo de Q225 y puede acumular premios.',
                 'tipo' => 'cliente',
                 'cliente' => [
-                    'CodCliente' => $cliente->Codcliente,
-                ]
+    'CodCliente' => $cliente->Codcliente,
+    'Nombre' => trim(($cliente->Nom1cliente ?? '') . ' ' . ($cliente->Ape1cliente ?? '')),
+]
             ]);
         }
 
@@ -93,13 +94,13 @@ class ClientePublicController extends Controller
             'mejor_opcion' => null,
         ]);
     }
-
+                                                                                                                                                   
     // 2. Buscar cliente inscrito
     $cliente = DB::connection('admin_ml')
-        ->table('clientes')
-        ->whereRaw('UPPER(TRIM(Codcliente)) = ?', [strtoupper($codcliente)])
-        ->select('Codcliente')
-        ->first();
+    ->table('clientes')
+    ->whereRaw('UPPER(TRIM(CodCliente)) = ?', [strtoupper($codcliente)])
+    ->select('Codcliente', 'Nom1cliente', 'Ape1cliente')
+    ->first();
 
     if (!$cliente) {
         return response()->json([
@@ -187,20 +188,53 @@ private function calcularOpcionesPremios(float $disponible): array
                 'cantidad_c2' => $c2,
                 'monto_usado' => round($montoUsado, 2),
                 'saldo_restante' => round($saldoRestante, 2),
-                'faltante_para_otro_c1' => max($valorC1 - $saldoRestante, 0),
-                'faltante_para_otro_c2' => max($valorC2 - $saldoRestante, 0),
+                'faltante_para_otro_c1' => round(max($valorC1 - $saldoRestante, 0), 2),
+                'faltante_para_otro_c2' => round(max($valorC2 - $saldoRestante, 0), 2),
             ];
         }
     }
 
+    // Prioriza primero la opción con más premios del Rango 2.
+    // Si tienen la misma cantidad de Rango 2, prioriza la que tenga más Rango 1.
     usort($opciones, function ($a, $b) {
-        if ($a['saldo_restante'] == $b['saldo_restante']) {
+        if ($a['cantidad_c2'] !== $b['cantidad_c2']) {
             return $b['cantidad_c2'] <=> $a['cantidad_c2'];
         }
 
-        return $a['saldo_restante'] <=> $b['saldo_restante'];
+        return $b['cantidad_c1'] <=> $a['cantidad_c1'];
     });
 
-    return array_slice($opciones, 0, 5);
+    return $opciones;
+}
+
+public function codigoNoInscritoPorTienda($storeId)
+{
+    $store = \App\Models\Store::find($storeId);
+
+    if (!$store) {
+        return response()->json([
+            'ok' => false,
+            'message' => 'Tienda no encontrada.'
+        ], 404);
+    }
+
+    $bodega = DB::connection('admin_ml')
+        ->table('bodega')
+        ->whereRaw('UPPER(TRIM(Nombodega)) = ?', [strtoupper(trim($store->name))])
+        ->select('Codbodega', 'Nombodega', 'CodigoClieNoInscr')
+        ->first();
+
+    if (!$bodega || trim((string) $bodega->CodigoClieNoInscr) === '') {
+        return response()->json([
+            'ok' => false,
+            'message' => 'Esta tienda no tiene código de cliente no inscrito configurado.'
+        ], 404);
+    }
+
+    return response()->json([
+        'ok' => true,
+        'codigo' => trim($bodega->CodigoClieNoInscr),
+        'bodega' => $bodega->Nombodega,
+    ]);
 }
 }

@@ -22,6 +22,21 @@
     <a href="{{ route('login') }}" class="btn btn-light">
             Iniciar sesión
         </a>
+<div class="hero-socials mt-3">
+    <span class="hero-socials-text">Síguenos:</span>
+
+    <a href="https://www.tiktok.com/@marlenlamurgt?_r=1&_t=ZS-96IrgluU5Y8" target="_blank" class="hero-social-btn" aria-label="TikTok">
+        <i class="bi bi-tiktok"></i>
+    </a>
+
+    <a href="https://www.facebook.com/marlenlamurgt#" target="_blank" class="hero-social-btn" aria-label="Facebook">
+        <i class="bi bi-facebook"></i>
+    </a>
+
+    <a href="https://www.instagram.com/marlenlamurgt/" target="_blank" class="hero-social-btn" aria-label="Instagram">
+        <i class="bi bi-instagram"></i>
+    </a>
+</div>
 
    {{-- <a href="{{ route('register') }}" class="btn btn-light">
             Registrarme

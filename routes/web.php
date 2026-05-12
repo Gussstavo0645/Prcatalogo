@@ -54,6 +54,8 @@ Route::get('/product-image/{product}', [CatalogoController::class, 'productImage
     Route::get('/clientes/acumulado/{codcliente}', [ClientePublicController::class, 'acumulado'])
     ->name('clientes.acumulado');
 
+    Route::get('/clientes/no-inscrito/tienda/{storeId}', [ClientePublicController::class, 'codigoNoInscritoPorTienda']);
+
 Route::view('/quienes-somos', 'catalogo.quisomos')
     ->name('catalogo.quisomos');
 
