@@ -35,4 +35,14 @@ return [
         ],
     ],
 
+
+    'neopay' => [
+    'mode' => env('NEOPAY_MODE', 'sandbox'),
+    'base_url' => env('NEOPAY_BASE_URL'),
+    'merchant_id' => env('NEOPAY_MERCHANT_ID'),
+    'secret_key' => env('NEOPAY_SECRET_KEY'),
+    'terminal_id' => env('NEOPAY_TERMINAL_ID'),
+    'currency' => env('NEOPAY_CURRENCY', 'GTQ'),
+],
+
 ];

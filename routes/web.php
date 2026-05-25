@@ -11,6 +11,8 @@ use App\Http\Controllers\Admin\CatalogComboController;
 use App\Http\Controllers\AdminStoreController;
 use App\Http\Controllers\ClientePublicController;
 use App\Http\Controllers\Admin\DashboardController;
+  use App\Http\Controllers\PagoNeoPayController;
+
 /*
 |--------------------------------------------------------------------------
 | PÚBLICO
@@ -58,6 +60,17 @@ Route::get('/product-image/{product}', [CatalogoController::class, 'productImage
 
 Route::view('/quienes-somos', 'catalogo.quisomos')
     ->name('catalogo.quisomos');
+
+    
+
+Route::post('/pedidos/{pedido}/neopay/iniciar', [PagoNeoPayController::class, 'iniciar'])
+    ->name('neopay.iniciar');
+
+Route::get('/pagos/neopay/retorno', [PagoNeoPayController::class, 'retorno'])
+    ->name('neopay.retorno');
+
+Route::post('/pagos/neopay/webhook', [PagoNeoPayController::class, 'webhook'])
+    ->name('neopay.webhook');
 
 
 /*

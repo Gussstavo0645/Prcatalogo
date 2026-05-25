@@ -99,88 +99,109 @@
                 </thead>
 
 @php
-$itemsAgrupados = $pedido->items->groupBy(function ($item) {
-    return $item->combo_group ?: 'normal_' . $item->id;
-});
+    $itemsPedido = $pedido->items;
+
+    // Solo productos que son componentes de un combo
+    $combosAgrupados = $itemsPedido
+        ->filter(function ($item) {
+            return (int)($item->is_combo_component ?? 0) === 1
+                && !empty($item->combo_group);
+        })
+        ->groupBy('combo_group');
+
+    // Productos normales, como el 786
+    $productosNormales = $itemsPedido
+        ->filter(function ($item) {
+            return (int)($item->is_combo_component ?? 0) === 0;
+        });
 @endphp
 
-                <tbody>
-                    @foreach($itemsAgrupados as $grupo => $items)
+<tbody>
 
-    @php
-        $primero = $items->first();
-    @endphp
+    {{-- COMBOS --}}
+    @foreach($combosAgrupados as $grupo => $itemsCombo)
 
-    {{-- 🔥 SI ES COMBO --}}
-    @if($primero->is_combo_component)
+        @php
+            $primero = $itemsCombo->first();
+        @endphp
 
         <tr style="background:#e9f3ff; font-weight:bold;">
             <td colspan="7">
-                🧩 {{ $primero->combo_name }}
+                🧩 {{ $primero->combo_name ?? ('Combo ' . $primero->combo_code . '-' . $primero->combo_color) }}
             </td>
         </tr>
 
-        @foreach($items as $item)
+        @foreach($itemsCombo as $item)
 
-     @php
-  $code = trim((string) $item->product_code);
-  $color = trim((string) $item->product_color);
-@endphp
+            @php
+                $code = trim((string) $item->product_code);
+                $color = trim((string) $item->product_color);
+            @endphp
 
-<tr>
-    <td>
-<img
-  src="{{ url('/catalogo/producto-thumb/'.$code.'/'.$color) }}"
-  width="60"
-  class="rounded"
-  style="object-fit:contain;background:#fff;"
-  onerror="this.onerror=null;this.src='https://via.placeholder.com/60x60?text=Sin+foto';"
->
+            <tr>
+                <td>
+                    <img
+                        src="{{ url('/catalogo/producto-thumb/'.$code.'/'.$color) }}"
+                        width="60"
+                        class="rounded"
+                        style="object-fit:contain;background:#fff;"
+                        onerror="this.onerror=null;this.src='https://via.placeholder.com/60x60?text=Sin+foto';"
+                    >
                 </td>
 
                 <td>{{ $item->product_name }}</td>
                 <td>{{ $item->product_code }}</td>
                 <td>{{ $item->product_color }}</td>
                 <td>{{ $item->quantity }}</td>
-                <td>Q {{ number_format($item->price, 2) }}</td>
-                <td><strong>Q {{ number_format($item->subtotal, 2) }}</strong></td>
+                <td>Q {{ number_format((float)$item->price, 2) }}</td>
+                <td><strong>Q {{ number_format((float)$item->subtotal, 2) }}</strong></td>
             </tr>
+
         @endforeach
 
-    {{-- 🔹 PRODUCTO NORMAL --}}
-    @else
+    @endforeach
 
-        @foreach($items as $item)
 
-          @php
-  $code = trim((string) $item->product_code);
-  $color = trim((string) $item->product_color);
-@endphp
+    {{-- PRODUCTOS INDIVIDUALES --}}
+    @if($productosNormales->count() > 0)
 
-<tr>
-    <td>
-<img
-  src="{{ url('/catalogo/producto-thumb/'.$code.'/'.$color) }}"
-  width="60"
-  class="rounded"
-  style="object-fit:contain;background:#fff;"
-  onerror="this.onerror=null;this.src='https://via.placeholder.com/60x60?text=Sin+foto';"
->
+        <tr style="background:#f4f4f8; font-weight:bold;">
+            <td colspan="7">
+                Productos individuales
+            </td>
+        </tr>
+
+        @foreach($productosNormales as $item)
+
+            @php
+                $code = trim((string) $item->product_code);
+                $color = trim((string) $item->product_color);
+            @endphp
+
+            <tr>
+                <td>
+                    <img
+                        src="{{ url('/catalogo/producto-thumb/'.$code.'/'.$color) }}"
+                        width="60"
+                        class="rounded"
+                        style="object-fit:contain;background:#fff;"
+                        onerror="this.onerror=null;this.src='https://via.placeholder.com/60x60?text=Sin+foto';"
+                    >
                 </td>
 
                 <td>{{ $item->product_name }}</td>
                 <td>{{ $item->product_code }}</td>
                 <td>{{ $item->product_color }}</td>
                 <td>{{ $item->quantity }}</td>
-                <td>Q {{ number_format($item->price, 2) }}</td>
-                <td><strong>Q {{ number_format($item->subtotal, 2) }}</strong></td>
+                <td>Q {{ number_format((float)$item->price, 2) }}</td>
+                <td><strong>Q {{ number_format((float)$item->subtotal, 2) }}</strong></td>
             </tr>
+
         @endforeach
 
     @endif
 
-@endforeach
-                </tbody>
+</tbody>
             </table>
         </div>
 

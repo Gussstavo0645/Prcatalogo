@@ -915,6 +915,61 @@ if (!store_id) {
       return;
     }
 
+    if (data.requiere_pago_online && data.pago_metodo === 'neopay') {
+  const modalEl = document.getElementById('checkoutModal');
+  const modalInstance = bootstrap.Modal.getInstance(modalEl);
+  modalInstance?.hide();
+
+  const pagoRes = await fetch(`/pedidos/${data.pedido_id}/neopay/iniciar`, {
+    method: 'POST',
+    headers: {
+      'Accept': 'application/json',
+      'X-Requested-With': 'XMLHttpRequest',
+      'X-CSRF-TOKEN': token
+    }
+  });
+
+  const pagoData = await pagoRes.json();
+
+  if (!pagoRes.ok || !pagoData.ok) {
+    await Swal.fire({
+      icon: 'warning',
+      title: 'Pedido creado',
+      html: `
+        <p>Tu pedido fue creado, pero no se pudo iniciar NeoPay.</p>
+        <p><b>Pedido:</b> #${data.pedido_id}</p>
+        <p>${pagoData.message || 'Intenta nuevamente o contacta a la tienda.'}</p>
+      `,
+      confirmButtonColor: '#C2185B'
+    });
+
+    return;
+  }
+
+  clearCart();
+  resetCheckoutForm();
+  showStep(1);
+
+  if (pagoData.redirect_url) {
+    window.location.href = pagoData.redirect_url;
+    return;
+  }
+
+  await Swal.fire({
+    icon: 'info',
+    title: 'Pedido preparado para NeoPay',
+    html: `
+      <p>El pedido quedó preparado para pago en línea.</p>
+      <p><b>Pedido:</b> #${data.pedido_id}</p>
+      <p><b>Referencia:</b> ${pagoData.referencia || 'Pendiente'}</p>
+      <p class="text-muted">Falta conectar la API real de NeoNet para redirigir al pago.</p>
+    `,
+    confirmButtonColor: '#C2185B'
+  });
+
+  return;
+}
+
  let premioHtml = '';
 
 if (data.premio) {
@@ -1048,7 +1103,11 @@ if (data.premio) {
   } finally {
     if (btnConfirm) {
       btnConfirm.disabled = false;
-      btnConfirm.textContent = 'Confirmar pedido';
+      const metodoActual = document.getElementById('pagoMetodo')?.value || '';
+
+btnConfirm.textContent = metodoActual === 'neopay'
+  ? 'Continuar a pago'
+  : 'Confirmar pedido';
     }
   }
 }
@@ -1698,4 +1757,31 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
+});
+
+document.addEventListener('DOMContentLoaded', function () {
+  const pagoMetodo = document.getElementById('pagoMetodo');
+  const neoPayInfo = document.getElementById('neoPayInfo');
+  const btnConfirm = document.getElementById('btnConfirm');
+
+  if (!pagoMetodo) return;
+
+  function actualizarMetodoPago() {
+    if (pagoMetodo.value === 'neopay') {
+      neoPayInfo?.classList.remove('d-none');
+
+      if (btnConfirm) {
+        btnConfirm.textContent = 'Continuar a pago';
+      }
+    } else {
+      neoPayInfo?.classList.add('d-none');
+
+      if (btnConfirm) {
+        btnConfirm.textContent = 'Confirmar pedido';
+      }
+    }
+  }
+
+  pagoMetodo.addEventListener('change', actualizarMetodoPago);
+  actualizarMetodoPago();
 });

@@ -26,7 +26,7 @@ class PedidoPublicController extends Controller
                 'ciudad'           => 'nullable|string|max:255',
                 'entrega_tipo'     => 'nullable|string|max:100',
                 'notas'            => 'nullable|string|max:1000',
-               'pago_metodo' => 'required|string|in:efectivo,tarjeta,transferencia',
+               'pago_metodo' => 'required|in:efectivo,transferencia,neopay',
                 'requiere_factura' => 'nullable|string|max:10',
                  'store_id' => 'required|exists:stores,id',
 'catalog_id' => 'required|exists:catalogs,id',
@@ -256,11 +256,30 @@ $subtotal = $price * $qty;
     $total += $subtotal;
  }
 
- $pedido->update([
-    'total' => $total
+ $metodoPago = $data['pago_metodo'];
+
+$pagoEstado = match ($metodoPago) {
+    'neopay' => 'pendiente_pago',
+    'transferencia' => 'pendiente_confirmacion',
+    default => 'pendiente',
+};
+
+$pagoGateway = match ($metodoPago) {
+    'neopay' => 'neopay',
+    'transferencia' => 'transferencia',
+    default => 'efectivo',
+};
+
+$pedido->update([
+    'total' => $total,
+    'pago_metodo' => $metodoPago,
+    'pago_estado' => $pagoEstado,
+    'pago_gateway' => $pagoGateway,
+    'pago_monto' => $total,
+    'pago_moneda' => 'GTQ',
 ]);
 
-$metodosContadoActual = ['efectivo', 'tarjeta', 'transferencia'];
+$metodosContadoActual = ['efectivo', 'transferencia', 'neopay'];
 
 if ($esClienteNoInscrito) {
     $premioInfo = [
@@ -283,32 +302,42 @@ if ($esClienteNoInscrito) {
 
     $premioInfo = $this->evaluarPremioDisponible($pedido->CodCliente, $totalParaPremio);
 }
- if ($data['pago_metodo'] === 'transferencia') {
+if ($data['pago_metodo'] === 'neopay') {
     return response()->json([
         'ok' => true,
         'pedido_id' => $pedido->id,
         'total' => $total,
         'premio' => $premioInfo,
+        'pago_metodo' => 'neopay',
+        'pago_estado' => 'pendiente_pago',
+        'requiere_pago_online' => true,
+        'message' => 'Pedido creado. Continuando a pago en línea con NeoPay.'
+    ]);
+}
+
+if ($data['pago_metodo'] === 'transferencia') {
+    return response()->json([
+        'ok' => true,
+        'pedido_id' => $pedido->id,
+        'total' => $total,
+        'premio' => $premioInfo,
+        'pago_metodo' => 'transferencia',
+        'pago_estado' => 'pendiente_confirmacion',
+        'requiere_pago_online' => false,
         'message' => 'Pedido creado. Te compartiremos los datos bancarios para la transferencia.'
     ]);
- }
+}
 
- if ($data['pago_metodo'] === 'tarjeta') {
-    return response()->json([
-        'ok' => true,
-        'pedido_id' => $pedido->id,
-        'total' => $total,
-        'premio' => $premioInfo,
-        'message' => 'Pedido creado. Método de pago en integración.'
-    ]);
- }
-
- return response()->json([
+return response()->json([
     'ok' => true,
     'pedido_id' => $pedido->id,
     'total' => $total,
     'premio' => $premioInfo,
- ]);
+    'pago_metodo' => 'efectivo',
+    'pago_estado' => 'pendiente',
+    'requiere_pago_online' => false,
+    'message' => 'Pedido creado correctamente.'
+]);
             });
 
         } catch (\Throwable $e) {

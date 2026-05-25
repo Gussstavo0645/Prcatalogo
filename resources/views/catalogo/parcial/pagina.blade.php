@@ -62,21 +62,40 @@
 </div>
 
       
-          <button
-            type="button"
-            class="badge bg-primary mt-1 border-0 w-100 p-2"
-            onclick="addToCart({
-              id: '{{ $prod->code }}-{{ $prod->color }}',
-              code: '{{ $prod->code }}',
-              color: '{{ $prod->color }}',
-              name: @js($prod->name),
-              price: {{ (float)($prod->price ?? $prod->combo_price ?? $prod->Precventa ?? 0) }},
-              qty: {{ (int) ($prod->quantity ?? 1) }},
-              img: '{{ $img }}'
-            })"
-          >
-            {{ $prod->quantity ?? 1 }} AGREGAR
-          </button>
+@php
+    $isCombo = !empty($prod->is_combo);
+
+    $comboItems = $isCombo
+        ? collect($prod->combo_items ?? [])->map(function ($item) {
+            return [
+                'code' => data_get($item, 'code') ?: data_get($item, 'product_code') ?: '',
+                'color' => data_get($item, 'color') ?: data_get($item, 'product_color') ?: '',
+                'name' => data_get($item, 'name') ?: '',
+                'quantity' => (int) (data_get($item, 'quantity') ?: 1),
+            ];
+        })->values()->all()
+        : [];
+
+    $cartPayload = [
+        'id' => ($isCombo ? 'combo-' : 'prod-') . $prod->code . '-' . $prod->color,
+        'is_combo' => $isCombo,
+        'code' => $prod->code,
+        'color' => $prod->color,
+        'name' => $prod->name,
+        'price' => (float)($prod->price ?? $prod->combo_price ?? $prod->Precventa ?? 0),
+        'qty' => 1,
+        'img' => $img,
+        'combo_items' => $comboItems,
+    ];
+@endphp
+
+<button
+    type="button"
+    class="badge bg-primary mt-1 border-0 w-100 p-2"
+    onclick='event.stopPropagation(); addToCart(@json($cartPayload, JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP | JSON_HEX_TAG));'
+>
+    1 AGREGAR
+</button>
         </div>
       @endforeach
     </div>

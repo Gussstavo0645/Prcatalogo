@@ -18,7 +18,15 @@ class Pedido extends Model
         'pago_metodo',
         'total',
         'status',
-        
+        'pago_estado',
+        'pago_gateway',
+        'pago_referencia',
+        'pago_transaccion_id',
+        'pago_token',
+        'pago_monto',
+        'pago_moneda',
+        'pago_respuesta',
+        'pagado_en',
     ];
 
     public function items()
@@ -30,4 +38,9 @@ class Pedido extends Model
 {
     return $this->belongsTo(Store::class, 'store_id');
 }
+
+protected $casts = [
+    'pago_respuesta' => 'array',
+    'pagado_en' => 'datetime',
+];
 }

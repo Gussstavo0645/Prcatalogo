@@ -96,7 +96,12 @@ DB::transaction(function () use ($catalog, $data, $comboInv, $comboCode, $comboC
 
      $productoInvQuery = DB::connection('admin_ml')
     ->table('inventario as i')
-    ->whereRaw('TRIM(i.Codprod) = ?', [$productCode]);
+    ->whereRaw('TRIM(i.Codprod) = ?', [$productCode])
+    ->whereRaw('TRIM(i.mesyope) = ?', [$mes]);
+
+if ($tipo !== '') {
+    $productoInvQuery->whereRaw('TRIM(i.tipocatalogo) = ?', [$tipo]);
+}
 
 if ($productColor !== '') {
     $productoInvQuery->whereRaw('TRIM(i.color) = ?', [$productColor]);
