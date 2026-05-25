@@ -10,6 +10,7 @@ class Tienda extends Model
     protected $table = 'stores';
 
     protected $fillable = [
+        'bodega_codigo',
         'nombre',
         'direccion',
         'telefono',

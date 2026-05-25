@@ -6,7 +6,7 @@
 
         <div class="text-center mb-5">
             <a href="{{ route('catalogs.index') }}">
-                <img src="{{ asset('imagenes/LOGO.png') }}" alt="Marle" class="log">
+                <img src="{{ asset('imagenes/LOGO1.png') }}" alt="Marle" class="log">
             </a>
             <h1 class="about-title mt-4">En marlen lamur</h1>
             <p class="about-subtitle">
@@ -18,8 +18,8 @@
             <div class="col-12 col-lg-10">
                 <div class="about-card">
                     <h4>Nuestra Misión</h4>
-                    <h2>"Tu oportunidad de crecimiento con el respaldo de la mejor calidad."</h2>
-                    <img src="{{ asset('imagenes/MISION1.png') }}" class="mission-img">
+                  
+                    {{--<img src="{{ asset('imagenes/') }}" class="mission-img">--}}
                     <p>
                         Somos una empresa reconocida por sus productos de alta calidad y excelente servicio,
                         cuya finalidad es generar fuentes de ingresos a los hogares guatemaltecos a través

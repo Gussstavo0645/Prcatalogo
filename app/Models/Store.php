@@ -22,6 +22,7 @@ class Store extends Model
     {
         return $this->belongsToMany(
             Catalogo::class,
+            'bodega_codigo', 
             'catalog_store',
             'store_id',
             'catalog_id'

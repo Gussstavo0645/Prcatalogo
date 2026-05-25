@@ -11,6 +11,7 @@
     <link rel="stylesheet" href="{{ asset('css/catalogo_publico.css') }}?v=13">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/page-flip/dist/css/page-flip.css">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/driver.js@1.3.6/dist/driver.css">
 </head>
 
 <body class="catalog-body">
@@ -26,24 +27,28 @@
 
     <!-- BOTONES FLOTANTES -->
 <div class="floating-buttons">
-    
-    <!-- WhatsApp -->
 
-    <a href="https://wa.me/50237553802" target="_blank" class="float-btn whatsapp">
-    <i class="bi bi-whatsapp"></i>
-    <span class="tooltip">WhatsApp</span>
-</a>
+    <!-- WhatsApp -->
+    <a id="tour-whatsapp" href="https://wa.me/50254392024" target="_blank" class="float-btn whatsapp">
+        <i class="bi bi-whatsapp"></i>
+        <span class="tooltip">WhatsApp</span>
+    </a>
+
     <!-- Teléfono -->
-    <a href="tel:+50237553802" class="float-btn phone">
+    <a id="tour-telefono" href="tel:+50254392024" class="float-btn phone">
         <i class="bi bi-telephone-fill"></i>
+        <span class="tooltip">Llamar</span>
     </a>
 
     <!-- Chat -->
- {{--   <a href="#" class="float-btn chat">
+    {{--   
+    <a href="#" class="float-btn chat">
         <i class="bi bi-chat-dots-fill"></i>
-    </a>--}}
+    </a>
+    --}}
 
 </div>
+
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/page-flip/dist/js/page-flip.browser.min.js"></script>
@@ -55,6 +60,9 @@
     whatsapp: @json($catalog->whatsapp_number ?? '50237553802')
   }; </script>
     <script src="{{ asset('js/catalogo_publico.js') }}?v=13"></script>
+
+    <!-- ONBOARDING / TOUR GUIADO -->
+<script src="https://cdn.jsdelivr.net/npm/driver.js@1.3.6/dist/driver.js.iife.js"></script>
 
     @yield('scripts')
 </body>

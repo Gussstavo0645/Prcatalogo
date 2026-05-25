@@ -1167,9 +1167,54 @@ function getBaseSize() {
   });
 
 pageFlip.loadFromHTML(root.querySelectorAll('.page'));
+
+const prevBtn = document.getElementById('prev');
+const nextBtn = document.getElementById('next');
+
+if (prevBtn) {
+  prevBtn.addEventListener('click', function () {
+    pageFlip.flipPrev();
+  });
+}
+
+if (nextBtn) {
+  nextBtn.addEventListener('click', function () {
+    pageFlip.flipNext();
+  });
+}
+
 window.pageFlip = pageFlip;
+function cargarThumbsCercanas() {
+  const pages = Array.from(root.querySelectorAll('.page'));
+  const current = pageFlip.getCurrentPageIndex();
+
+  const indicesACargar = [
+    current - 1,
+    current,
+    current + 1,
+    current + 2
+  ];
+
+  indicesACargar.forEach(index => {
+    const page = pages[index];
+    if (!page) return;
+
+    page.querySelectorAll('img.product-thumb[data-src]').forEach(img => {
+      img.src = img.dataset.src;
+      img.removeAttribute('data-src');
+    });
+  });
+}
+
+// Cargar imágenes iniciales visibles
+cargarThumbsCercanas();
+
+// Cargar imágenes cuando cambia de página
+pageFlip.on('flip', function () {
+  cargarThumbsCercanas();
+});
 lockFlipOnOverlay(root, '.products-overlay');
-bindZoomPreload(root);
+//bindZoomPreload(root);
 bindProductZoom(root);
 
     function updatePageIndicator() {
@@ -1394,7 +1439,11 @@ document.addEventListener('DOMContentLoaded', function () {
 document.addEventListener('DOMContentLoaded', function () {
   const btn = document.getElementById('btnConsultarAcumulado');
   const input = document.getElementById('consultaCodCliente');
-  const box = document.getElementById('resultadoAcumulado');
+  const box = document.getElementById('resultadoAcumuladoModal');
+const modalAcumuladoEl = document.getElementById('modalAcumulado');
+const modalAcumulado = modalAcumuladoEl
+  ? bootstrap.Modal.getOrCreateInstance(modalAcumuladoEl)
+  : null;
 
   if (!btn || !input || !box) return;
 
@@ -1419,14 +1468,19 @@ document.addEventListener('DOMContentLoaded', function () {
       return;
     }
 
-    btn.disabled = true;
-    btn.textContent = 'Consultando...';
+   btn.disabled = true;
+btn.textContent = 'Consultando...';
 
-    box.innerHTML = `
-      <div class="alert alert-info mb-0">
-        Consultando acumulado...
-      </div>
-    `;
+box.innerHTML = `
+  <div class="acumulado-loading">
+    <div>
+      <div class="spinner-border text-light" role="status"></div>
+      <div class="mt-3 fw-bold">Consultando acumulado...</div>
+    </div>
+  </div>
+`;
+
+modalAcumulado?.show();
 
     try {
       const res = await fetch(`/clientes/acumulado/${encodeURIComponent(codcliente)}`, {
@@ -1519,7 +1573,7 @@ if (mejorOpcion) {
 
           return `
             <div class="col-md-6">
-              <div class="border rounded-3 p-3 bg-white h-100">
+              <div class="canje-opcion-card border rounded-3 p-3 bg-white h-100">
                 <div class="d-flex justify-content-between align-items-start gap-2">
                   <b>${textoOpcion}</b>
                   ${index === 0 ? '<span class="badge text-bg-success">Recomendada</span>' : ''}
@@ -1590,4 +1644,58 @@ if (mejorOpcion) {
       btn.textContent = 'Consultar';
     }
   }
+});
+
+
+document.addEventListener('DOMContentLoaded', function () {
+
+    const modal = document.getElementById('imgModal');
+    const modalImg = document.getElementById('imgModalSrc');
+    const closeBtn = modal ? modal.querySelector('.img-close') : null;
+    const rewardImages = document.querySelectorAll('.reward-zoom-img');
+
+    function abrirModal(img) {
+        if (!modal || !modalImg) return;
+
+        modalImg.src = img.dataset.full || img.src;
+        modalImg.alt = img.alt || 'Premio ampliado';
+
+        modal.classList.add('active');
+        modal.setAttribute('aria-hidden', 'false');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function cerrarModal() {
+        if (!modal || !modalImg) return;
+
+        modal.classList.remove('active');
+        modal.setAttribute('aria-hidden', 'true');
+        modalImg.src = '';
+        document.body.style.overflow = '';
+    }
+
+    rewardImages.forEach(img => {
+        img.addEventListener('click', function () {
+            abrirModal(this);
+        });
+    });
+
+    if (closeBtn) {
+        closeBtn.addEventListener('click', cerrarModal);
+    }
+
+    if (modal) {
+        modal.addEventListener('click', function (e) {
+            if (e.target === modal) {
+                cerrarModal();
+            }
+        });
+    }
+
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && modal && modal.classList.contains('active')) {
+            cerrarModal();
+        }
+    });
+
 });

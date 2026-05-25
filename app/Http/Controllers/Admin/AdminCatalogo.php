@@ -131,7 +131,10 @@ $inventario = $inventarioQuery
     }
 
 
-$tiendas = Store::all();
+
+$tiendas = Store::whereNotNull('bodega_codigo')
+    ->orderBy('bodega_codigo')
+    ->get();
  return view('admin.catalogo.create', compact(
     'catalogs',
     'catalog',
@@ -762,6 +765,52 @@ public function syncTiendas(Request $r, Catalogo $catalog)
     $catalog->tiendas()->sync($r->input('tiendas', []));
 
     return back()->with('ok', 'Tiendas asignadas correctamente.');
+}
+
+
+private function sincronizarTiendasDesdeBodega()
+{
+    $bodegas = DB::connection('admin_ml')
+        ->table('bodega')
+        ->select('Codbodega', 'Nombodega')
+        ->orderBy('Codbodega')
+        ->get();
+
+    foreach ($bodegas as $bodega) {
+        Store::updateOrCreate(
+            [
+                'bodega_codigo' => $bodega->Codbodega,
+            ],
+            [
+                'name' => $bodega->Nombodega,
+                'direccion' => '',
+                'telefono' => '',
+                'whatsapp_number' => '',
+                'activo' => 1,
+            ]
+        );
+    }
+
+    return Store::orderBy('bodega_codigo')->get();
+}
+
+private function actualizarCodigosBodegaEnStores()
+{
+    $bodegas = DB::connection('admin_ml')
+        ->table('bodega')
+        ->select('Codbodega', 'Nombodega')
+        ->get();
+
+    foreach ($bodegas as $bodega) {
+        $nombreBodega = strtoupper(trim($bodega->Nombodega));
+
+        $store = Store::whereRaw('UPPER(TRIM(name)) = ?', [$nombreBodega])->first();
+
+        if ($store) {
+            $store->bodega_codigo = $bodega->Codbodega;
+            $store->save();
+        }
+    }
 }
     
 }

@@ -10,70 +10,135 @@
 @section('content')
 <div class="catalog-body ">
 
-  <h3 class="mb-1">{{ $catalog->title }}</h3>
+  {{-- =====================================================
+     CABECERA PROFESIONAL DEL CATÁLOGO
+===================================================== --}}
+<section class="catalog-commerce-head">
 
- <div class="mb-3">
-  <label class="fw-bold">Seleccionar tienda</label>
+  <div class="commerce-head-top">
 
-  <select id="store_id" class="form-select" required>
-    <option value="">Seleccionar tienda</option>
+    <div class="commerce-brand">
+      <span class="commerce-kicker">
+        Catálogo digital
+      </span>
 
-    @foreach($catalog->tiendas as $tienda)
-      <option 
-        value="{{ $tienda->id }}" 
-        data-whatsapp="{{ $tienda->whatsapp_number }}">
-        {{ $tienda->name }}
-      </option>
-    @endforeach
+      <div class="commerce-title-line">
+        <h3 id="tour-titulo-catalogo" class="commerce-title">
+          {{ $catalog->title }}
+        </h3>
 
-  </select>
+        @if(!empty($catalog->description))
+          <span class="commerce-period">
+            {{ $catalog->description }}
+          </span>
+        @endif
+      </div>
 
-  <input type="hidden" id="catalog_id" value="{{ $catalog->id }}">
-
-</div>
-
-<div class="consulta-acumulado-card mb-4">
-  <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
-    <div>
-      <span class="consulta-badge">🎁 Premios del mes</span>
-      <h5 class="mb-1">Consulta tu acumulado</h5>
-      <p class="text-muted mb-0">
-        Ingresa tu código de cliente para ver cuánto llevas acumulado este mes.
+      <p class="commerce-caption">
+        Selecciona tu tienda, consulta tu acumulado y realiza tu pedido directamente desde el catálogo.
       </p>
     </div>
 
-    <div class="consulta-acumulado-form">
-      <input 
-        type="text" 
-        id="consultaCodCliente" 
-        class="form-control" 
-        placeholder="Ej: 1-11, OFZONA10"
-      >
+    <button type="button" id="btnTourCatalogo" class="commerce-help-btn">
+      <i class="bi bi-question-circle"></i>
+      ¿Cómo comprar?
+    </button>
 
-      <button 
-        type="button" 
-        class="btn btn-primary" 
-        id="btnConsultarAcumulado"
-      >
-        Consultar
-      </button>
-    </div>
   </div>
 
-  <div id="resultadoAcumulado" class="mt-3"></div>
+
+  <div class="commerce-controls">
+
+    {{-- TIENDA --}}
+    <div class="commerce-control commerce-store-control" id="tour-seleccionar-tienda">
+      <label class="commerce-label">
+        <i class="bi bi-shop"></i>
+        Tienda que atenderá tu pedido
+      </label>
+
+      <select id="store_id" class="form-select commerce-select" required>
+        <option value="">Seleccionar tienda</option>
+
+        @foreach($catalog->tiendas as $tienda)
+          <option 
+            value="{{ $tienda->id }}" 
+            data-whatsapp="{{ $tienda->whatsapp_number }}">
+            {{ $tienda->name }}
+          </option>
+        @endforeach
+      </select>
+
+      <input type="hidden" id="catalog_id" value="{{ $catalog->id }}">
+    </div>
+
+
+    {{-- ACUMULADO --}}
+    <div class="commerce-control commerce-rewards-control" id="tour-acumulado">
+      <label class="commerce-label">
+        <i class="bi bi-gift-fill"></i>
+        Consulta tu acumulado del mes
+      </label>
+
+      <div class="commerce-rewards-form">
+        <input 
+          type="text" 
+          id="consultaCodCliente" 
+          class="form-control commerce-rewards-input" 
+          placeholder="Ej: 1-11, OFZONA10"
+        >
+
+        <button 
+          type="button" 
+          class="commerce-rewards-btn" 
+          id="btnConsultarAcumulado"
+        >
+          Consultar
+        </button>
+      </div>
+   
+    </div>
+
+  </div>
+
+</section>
+
+{{-- =====================================================
+     MODAL PREMIUM DE ACUMULADO
+===================================================== --}}
+<div class="modal fade" id="modalAcumulado" tabindex="-1" aria-labelledby="modalAcumuladoLabel" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content acumulado-modal-content">
+
+      <div class="modal-header acumulado-modal-header">
+        <div>
+          <span class="acumulado-modal-kicker">Premios del mes</span>
+          <h5 class="modal-title" id="modalAcumuladoLabel">
+            🎁 Acumulado y opciones de canje
+          </h5>
+        </div>
+
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+
+      <div class="modal-body acumulado-modal-body">
+        <div id="resultadoAcumuladoModal">
+          <div class="text-center py-4 text-muted">
+            Ingresa tu código y presiona consultar.
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer acumulado-modal-footer">
+        <button type="button" class="btn btn-outline-light" data-bs-dismiss="modal">
+          Cerrar
+        </button>
+      </div>
+
+    </div>
+  </div>
 </div>
 
-  @if(!empty($catalog->description))
-    <p class="text-muted">{{ $catalog->description }}</p>
-  @endif
-
-  {{--<div class="text-muted small">
-    Páginas BLOB: {{ $pages->count() }} |
-    Productos: {{ $productsFallback->count() }}
-  </div>--}}
-</div>
-
-<div id="flipbook-wrap">
+<div id="flipbook-wrap" data-tour="catalogo">
   <div id="flipbook"
        data-slug="{{ $catalog->slug }}"
        data-total="{{ $total }}"
@@ -95,10 +160,18 @@
 <button id="btnFullscreen" class="fullscreen-btn">
   ⛶
 </button>
- <div class="flip-controls">
-  <button id="prev" class="btn btn-outline-secondary">⟵ Anterior</button>
-  <span id="page-indicator" class="text-muted small">1 / {{ max(1, $total) }}</span>
-  <button id="next" class="btn btn-outline-secondary">Siguiente ⟶</button>
+<div class="flip-controls" id="tour-controles-paginas">
+  <button type="button" id="prev" class="btn btn-outline-secondary">
+    ⟵ Anterior
+  </button>
+
+  <span id="page-indicator" class="text-muted small">
+    1 / {{ max(1, $total) }}
+  </span>
+
+  <button type="button" id="next" class="btn btn-outline-secondary">
+    Siguiente ⟶
+  </button>
 </div>
 
 <div id="cartFab" class="cart-fab">
@@ -136,9 +209,9 @@
     <button type="button" class="img-close" id="imgModalClose">&times;</button>
     <img id="imgModalSrc" alt="Zoom producto">
   </div>
-</div>
-</div>
+   </div>
 
+</div>
 
 {{-- ======= CARRITO UI ======= --}}
 
@@ -318,4 +391,112 @@
 
 @endsection
 
+@section('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+
+    const driver = window.driver.js.driver;
+
+    const tourCatalogo = driver({
+        showProgress: true,
+        animate: true,
+        smoothScroll: true,
+        nextBtnText: 'Siguiente',
+        prevBtnText: 'Atrás',
+        doneBtnText: 'Finalizar',
+        progressText: '@{{current}} de @{{total}}',
+         popoverClass: "driverjs-theme",
+  stagePadding: 4,
+
+        steps: [
+            {
+                element: '#tour-titulo-catalogo',
+                popover: {
+                  
+                    title: 'Catálogo digital',
+                    description: 'Aquí estás viendo el catálogo disponible del mes. Sigue estos pasos para realizar tu pedido.'
+                }
+            },
+            {
+                element: '#tour-seleccionar-tienda',
+                popover: {
+                  
+                    title: '1. Selecciona tu tienda',
+                    description: 'Antes de comprar, elige la tienda que atenderá tu pedido y recibirá el resumen por WhatsApp.'
+                }
+            },
+            {
+                element: '#tour-acumulado',
+                popover: {
+                  
+                    title: '2. Consulta tus premios',
+                    description: 'Si eres cliente inscrito, ingresa tu código para revisar cuánto llevas acumulado este mes y qué premio puedes alcanzar.'
+                }
+            },
+            {
+                element: '#flipbook-wrap',
+                popover: {
+              
+                    title: '3. Explora el catálogo',
+                    description: 'Aquí verás los productos. Puedes presionar una imagen para ampliarla y usar el botón Agregar para enviarla al carrito.'
+                }
+            },
+            {
+                element: '#tour-controles-paginas',
+                popover: {
+                  
+                    title: '4. Cambia de página',
+                    description: 'Usa estos botones para avanzar o regresar dentro del catálogo.'
+                }
+            },
+            {
+                element: '#btnFullscreen',
+                popover: {
+                  
+                    title: '5. Ver en pantalla completa',
+                    description: 'Este botón amplía el catálogo para que puedas verlo con mayor comodidad.'
+                }
+            },
+            {
+                element: '#cartFab',
+                popover: {
+                  
+                    title: '6. Revisa tu carrito',
+                    description: 'Aquí aparecerán los productos que agregues. Presiónalo para revisar tu compra y avanzar al pago.'
+                }
+            },
+            {
+                element: '#tour-whatsapp',
+                popover: {
+            
+                    title: '7. Contacto por WhatsApp',
+                    description: 'También puedes escribir directamente por WhatsApp si necesitas ayuda.'
+                }
+            }
+        ],
+
+        onDestroyed: () => {
+            localStorage.setItem('tour_catalogo_visto', '1');
+        }
+    });
+
+    // Mostrar automáticamente solo la primera vez
+    if (!localStorage.getItem('tour_catalogo_visto')) {
+        setTimeout(() => {
+            tourCatalogo.drive();
+        }, 1000);
+    }
+
+    // Volver a ver el tour con el botón
+    const btnTourCatalogo = document.getElementById('btnTourCatalogo');
+
+    if (btnTourCatalogo) {
+        btnTourCatalogo.addEventListener('click', function () {
+            tourCatalogo.drive();
+        });
+    }
+
+});
+</script>
+@endsection
 

@@ -18,7 +18,7 @@
   <div class="card shadow-sm">
     <div class="card-body">
 
-      <form action="{{ route('admin.stores.update', $store->id) }}" method="POST">
+      <form action="{{ route('admin.stores.update', ['store' => $store->getKey()]) }}" method="POST">
         @csrf
         @method('PUT')
 
@@ -26,26 +26,22 @@
 
           <div class="col-md-6">
             <label class="form-label fw-bold">Nombre *</label>
-            <input type="text" name="name" class="form-control" value="{{ $store->name }}" required>
+            <input type="text" name="Nombodega" class="form-control" value="{{ $store->Nombodega }}" required>
           </div>
 
           <div class="col-md-6">
-            <label class="form-label fw-bold">WhatsApp</label>
-            <input type="text" name="whatsapp_number" class="form-control" value="{{ $store->whatsapp_number }}">
+            <label class="form-label fw-bold">Ubicación</label>
+            <input type="text" name="ubicacion" class="form-control" value="{{ $store->ubicacion }}">
           </div>
 
           <div class="col-md-6">
-            <label class="form-label fw-bold">Dirección</label>
-            <input type="text" name="address" class="form-control" value="{{ $store->address }}">
+            <label class="form-label fw-bold">Código</label>
+            <input type="text" name="Codigo" class="form-control" value="{{ $store->Codigo ?? '' }}">
           </div>
 
           <div class="col-md-6">
-            <label class="form-label fw-bold">Activo</label>
-            <div class="form-check">
-              <input type="checkbox" name="is_active" class="form-check-input"
-                     {{ $store->is_active ? 'checked' : '' }}>
-              <label class="form-check-label">Sí</label>
-            </div>
+            <label class="form-label fw-bold">Color</label>
+            <input type="text" name="color" class="form-control" value="{{ $store->color ?? '' }}">
           </div>
 
         </div>

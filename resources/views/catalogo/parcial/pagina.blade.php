@@ -44,12 +44,12 @@
 @endphp
 
         <div class="product-mini">
-      <img
-  src="{{ $img }}?v={{ $prod->code }}{{ $prod->color }}"
+   <img
+  src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=="
+  data-src="{{ $img }}?v={{ $prod->code }}{{ $prod->color }}"
   alt="{{ $prod->name }}"
   class="product-thumb"
   data-large="{{ $imgLarge }}?v={{ $prod->code }}{{ $prod->color }}"
-  loading="lazy"
   decoding="async"
   style="cursor: zoom-in;"
   onerror="this.onerror=null;this.src='https://via.placeholder.com/300x200?text=Sin+foto';"
