@@ -32,8 +32,12 @@ public function show($slug)
 {
     $catalog = Catalogo::where('slug', $slug)->firstOrFail();
 
-    $mes = '04/2026';
-    $tipo = 'N';
+  $mes = trim((string) ($catalog->mesyope ?? ''));
+$tipo = trim((string) ($catalog->tipocatalogo ?? ''));
+
+if ($mes === '' || $tipo === '') {
+    abort(500, 'Este catálogo no tiene mesyope o tipocatalogo definido.');
+}
    
 
     $pages = $catalog->paginas()
@@ -136,7 +140,10 @@ if (!$invExact && $lookupColor === '') {
 }
 
 
+$invByCode = $inventarioByCode->get($lookupCode);
+
 $name = trim((string) ($invExact->name ?? ''));
+
 if ($name === '') {
     $name = trim((string) ($invByCode->name ?? ''));
 }
@@ -175,6 +182,90 @@ $price = $invExact
     });
 
 $productos = $productos->concat($combos);
+
+// =====================================================
+// EXISTENCIAS POR PRODUCTO PARA TOOLTIP HOVER
+// =====================================================
+$itemsParaStock = $productos
+    ->filter(function ($prod) {
+        return empty($prod->is_combo);
+    })
+    ->values();
+
+$stockKeys = $itemsParaStock
+    ->map(function ($prod) {
+        $code = trim((string) ($prod->code ?? ''));
+        $color = trim((string) ($prod->color ?? ''));
+
+        return [
+            'code' => $code,
+            'color' => $color,
+        ];
+    })
+    ->filter(function ($item) {
+        return $item['code'] !== '';
+    })
+    ->unique(function ($item) {
+        return $item['code'] . '|' . $item['color'];
+    })
+    ->values();
+
+$stockCodes = $stockKeys
+    ->pluck('code')
+    ->unique()
+    ->values()
+    ->all();
+
+$existenciasPorProducto = collect();
+
+if (!empty($stockCodes)) {
+    $existencias = DB::connection('admin_ml')
+        ->table('inv_existencias as e')
+        ->leftJoin('bodega as b', 'e.Bodega', '=', 'b.Codbodega')
+        ->select(
+            DB::raw('TRIM(e.Codigo) as Codigo'),
+            DB::raw('TRIM(e.Color) as Color'),
+            'e.Bodega',
+            'b.Nombodega as tienda',
+            DB::raw('SUM(e.Saldo) as stock')
+        )
+        ->whereIn(DB::raw('TRIM(e.Codigo)'), $stockCodes)
+        ->where('e.Saldo', '>', 0)
+        ->whereRaw("UPPER(TRIM(b.Nombodega)) <> 'MAL ESTADO'")
+        ->groupBy(
+            DB::raw('TRIM(e.Codigo)'),
+            DB::raw('TRIM(e.Color)'),
+            'e.Bodega',
+            'b.Nombodega'
+        )
+        ->havingRaw('SUM(e.Saldo) > 0')
+        ->orderBy('b.Nombodega')
+        ->get();
+
+    $existenciasPorProducto = $existencias
+        ->groupBy(function ($row) {
+            return trim((string) $row->Codigo) . '|' . trim((string) $row->Color);
+        })
+        ->map(function ($rows) {
+            return $rows->map(function ($row) {
+                return [
+                    'tienda' => $row->tienda ?: 'Sin nombre',
+                    'stock' => (int) $row->stock,
+                ];
+            })->values();
+        });
+}
+
+$productos = $productos->map(function ($prod) use ($existenciasPorProducto) {
+    $code = trim((string) ($prod->code ?? ''));
+    $color = trim((string) ($prod->color ?? ''));
+
+    $key = $code . '|' . $color;
+
+    $prod->existencias = $existenciasPorProducto->get($key, collect());
+
+    return $prod;
+});
 
 $productosPorPagina = $productos
     ->sortBy([
@@ -556,6 +647,96 @@ $price = $invExact ? (float) ($invExact->price ?? 0) : 0;
 
 $productos = $productos->concat($combos);
 
+// =====================================================
+// EXISTENCIAS POR PRODUCTO PARA TOOLTIP HOVER
+// =====================================================
+$itemsParaStock = $productos
+    ->filter(function ($prod) {
+        return empty($prod->is_combo);
+    })
+    ->values();
+
+$stockCodes = $itemsParaStock
+    ->pluck('code')
+    ->filter()
+    ->map(function ($code) {
+        return trim((string) $code);
+    })
+    ->unique()
+    ->values()
+    ->all();
+
+$existenciasPorProducto = collect();
+
+if (!empty($stockCodes)) {
+    $existencias = DB::connection('admin_ml')
+        ->table('inv_existencias as e')
+        ->leftJoin('bodega as b', 'e.Bodega', '=', 'b.Codbodega')
+        ->select(
+            DB::raw('TRIM(e.Codigo) as Codigo'),
+            DB::raw('TRIM(e.Color) as Color'),
+            'e.Bodega',
+            'b.Nombodega as tienda',
+            DB::raw('SUM(e.Saldo) as stock')
+        )
+        ->whereIn(DB::raw('TRIM(e.Codigo)'), $stockCodes)
+        ->where('e.Saldo', '>', 0)
+        ->whereRaw("UPPER(TRIM(b.Nombodega)) <> 'MAL ESTADO'")
+        ->groupBy(
+            DB::raw('TRIM(e.Codigo)'),
+            DB::raw('TRIM(e.Color)'),
+            'e.Bodega',
+            'b.Nombodega'
+        )
+        ->havingRaw('SUM(e.Saldo) > 0')
+        ->orderBy('b.Nombodega')
+        ->get();
+
+    $existenciasPorProducto = $existencias
+        ->groupBy(function ($row) {
+            return trim((string) $row->Codigo) . '|' . trim((string) $row->Color);
+        })
+        ->map(function ($rows) {
+            return $rows->map(function ($row) {
+                return [
+                    'tienda' => $row->tienda ?: 'Sin nombre',
+                    'stock' => (int) $row->stock,
+                ];
+            })->values();
+        });
+}
+
+$productos = $productos->map(function ($prod) use ($existenciasPorProducto) {
+    $code = trim((string) ($prod->code ?? ''));
+    $color = trim((string) ($prod->color ?? ''));
+
+    $keyExacta = $code . '|' . $color;
+
+    $existencias = $existenciasPorProducto->get($keyExacta);
+
+    // Fallback: si el color viene como vacío o 0 en alguna tabla
+    if (!$existencias && $color === '0') {
+        $existencias = $existenciasPorProducto->get($code . '|');
+    }
+
+    if (!$existencias && $color === '') {
+        $existencias = $existenciasPorProducto->get($code . '|0');
+    }
+
+    // Fallback extra: por si el producto existe pero el color no coincide
+    if (!$existencias) {
+        $existencias = $existenciasPorProducto
+            ->filter(function ($rows, $key) use ($code) {
+                return str_starts_with($key, $code . '|');
+            })
+            ->flatten(1)
+            ->values();
+    }
+
+    $prod->existencias = $existencias ?: collect();
+
+    return $prod;
+});
 $productosPorPagina = $productos
     ->sortBy([
         ['page_number', 'asc'],

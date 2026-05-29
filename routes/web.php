@@ -203,6 +203,9 @@ Route::middleware(['auth'])
 
             Route::get('/dashboard', [DashboardController::class, 'index'])
         ->name('dashboard');
+
+        Route::post('/pedidos/{pedido}/enviar-admin-ml', [PedidoController::class, 'enviarAdminMl'])
+    ->name('pedidos.enviarAdminMl');
     });
 
 

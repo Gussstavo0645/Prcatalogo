@@ -4222,31 +4222,32 @@ body.catalog-body {
 
 /* Tablet: un poco más grande, pero sin salirse */
 /* =====================================================
-   TAMAÑO DE IMAGEN SEGÚN DISPOSITIVO
-   Evita que tablet saque el botón Agregar
+   TAMAÑO SEGURO DE IMAGEN PARA QUE NO BAJE EL BOTÓN
 ===================================================== */
 
-/* Teléfono: se conserva compacto */
 @media (max-width: 600px){
   .product-mini img{
-    height: 90px !important;
+    height: 68px !important;
+  }
+
+  .product-mini button.badge{
+    margin-top: auto !important;
+    height: 20px !important;
+    font-size: 9px !important;
   }
 }
 
-/* Tablet y laptop pequeña: seguro, no empuja el botón */
 @media (min-width: 601px) and (max-width: 1199px){
   .product-mini img{
-    height: 85px !important;
+    height: 82px !important;
   }
 }
 
-/* Computadora grande: imagen más protagonista */
 @media (min-width: 1200px){
   .product-mini img{
-    height: 180px !important;
+    height: 105px !important;
   }
 }
-
 /* =====================================================
    OPCIONES DE CANJE - TEXTO VISIBLE
 ===================================================== */
@@ -4359,4 +4360,211 @@ body.catalog-body {
     .acumulado-modal-body{
         padding: 16px;
     }
+}
+#stockTooltip {
+    position: fixed;
+    z-index: 999999;
+
+    width: 220px;
+    max-width: calc(100vw - 24px);
+
+    background: rgba(17, 24, 39, 0.96);
+    color: #fff;
+    border-radius: 14px;
+    padding: 10px 12px;
+
+    box-shadow: 0 18px 45px rgba(0,0,0,0.35);
+    font-size: 11px;
+    line-height: 1.28;
+
+    opacity: 0;
+    transform: translateY(6px);
+    pointer-events: none;
+    transition: opacity .15s ease, transform .15s ease;
+
+    max-height: none;
+    overflow: visible;
+}
+
+#stockTooltip.visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.stock-title {
+    font-weight: 900;
+    color: #fff;
+    margin-bottom: 6px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid rgba(255,255,255,0.16);
+}
+
+.stock-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0;
+}
+
+.stock-line {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    padding: 3px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+
+.stock-line span {
+    color: rgba(255,255,255,0.9);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.stock-line b {
+    color: #fff;
+    min-width: 35px;
+    text-align: right;
+    font-weight: 900;
+}
+
+.stock-empty {
+    color: rgba(255,255,255,0.75);
+}
+
+.btn-volver-catalogos {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+
+    width: fit-content;
+    margin-bottom: 12px;
+    padding: 8px 15px;
+
+    background: rgba(255, 255, 255, 0.13);
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.24);
+    border-radius: 999px;
+
+    font-size: 12px;
+    font-weight: 800;
+    text-decoration: none;
+    letter-spacing: .2px;
+
+    box-shadow: 0 10px 24px rgba(0,0,0,.18);
+    backdrop-filter: blur(10px);
+
+    transition: all .2s ease;
+}
+
+.btn-volver-catalogos:hover {
+    background: linear-gradient(135deg, #C2185B, #7C3AED);
+    color: #fff;
+    transform: translateY(-1px);
+    box-shadow: 0 14px 32px rgba(194, 24, 91, .35);
+}
+
+.btn-volver-catalogos i {
+    font-size: 14px;
+}
+
+.product-mini{
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+}
+
+.product-mini img{
+  flex-shrink: 0 !important;
+}
+
+.p-code{
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+.p-name{
+  min-height: 22px !important;
+  max-height: 22px !important;
+  overflow: hidden !important;
+}
+
+.p-price{
+  flex-shrink: 0 !important;
+}
+
+.product-mini button.badge{
+  margin-top: auto !important;
+  flex-shrink: 0 !important;
+}
+
+/* =====================================================
+   FIX FINAL: BOTÓN AGREGAR FIJO Y SIN CORTARSE
+===================================================== */
+
+.product-mini{
+  position: relative !important;
+  display: flex !important;
+  flex-direction: column !important;
+  padding: 7px 7px 32px !important;
+  overflow: hidden !important;
+  box-sizing: border-box !important;
+}
+
+.product-mini img{
+  height: 82px !important;
+  flex-shrink: 0 !important;
+  object-fit: contain !important;
+}
+
+.p-code{
+  font-size: 15px !important;
+  line-height: 1 !important;
+  margin-top: 4px !important;
+  min-height: 16px !important;
+
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+.p-name{
+  font-size: 10px !important;
+  line-height: 1.05 !important;
+  margin-top: 2px !important;
+  min-height: 22px !important;
+  max-height: 22px !important;
+
+  display: -webkit-box !important;
+  -webkit-line-clamp: 2 !important;
+  -webkit-box-orient: vertical !important;
+  overflow: hidden !important;
+}
+
+.p-price{
+  font-size: 11px !important;
+  line-height: 1 !important;
+  margin-top: 2px !important;
+}
+
+.product-mini button.badge{
+  position: absolute !important;
+  left: 0px !important;
+  right: 8px !important;
+  bottom: 4px !important;
+
+  height: 10px !important;
+  min-height: 24px !important;
+  line-height: -50 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+
+  font-size: 10px !important;
+  border-radius: 999px !important;
+  white-space: nowrap !important;
 }

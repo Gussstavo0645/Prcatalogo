@@ -1785,3 +1785,116 @@ document.addEventListener('DOMContentLoaded', function () {
   pagoMetodo.addEventListener('change', actualizarMetodoPago);
   actualizarMetodoPago();
 });
+
+
+(function () {
+    if (document.getElementById('stockTooltip')) return;
+
+    const tooltip = document.createElement('div');
+    tooltip.id = 'stockTooltip';
+    document.body.appendChild(tooltip);
+
+    let activeCard = null;
+
+    function escapeHtml(value) {
+        return String(value ?? '').replace(/[&<>"']/g, function (s) {
+            return {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            }[s];
+        });
+    }
+
+    function renderStock(data) {
+        if (!Array.isArray(data) || data.length === 0) {
+            return `
+                <div class="stock-title">Existencias</div>
+                <div class="stock-empty">Sin unidades disponibles.</div>
+            `;
+        }
+
+        const total = data.reduce((sum, item) => {
+            return sum + Number(item.stock || 0);
+        }, 0);
+
+        const rows = data.map(item => {
+    const tienda = item.tienda || item.Nombodega || item.bodega || 'Tienda';
+    const stock = Number(item.stock || item.Saldo || 0);
+
+    return `
+        <div class="stock-line">
+            <span>${escapeHtml(tienda)}</span>
+            <b>${stock}</b>
+        </div>
+    `;
+}).join('');
+
+
+//${total}
+        return `
+            <div class="stock-title">Existencias: </div>
+            ${rows}
+        `;
+    }
+
+    function moveTooltip(event) {
+        let x = event.clientX + 18;
+        let y = event.clientY + 18;
+
+        tooltip.style.left = x + 'px';
+        tooltip.style.top = y + 'px';
+
+        const rect = tooltip.getBoundingClientRect();
+
+        if (rect.right > window.innerWidth - 12) {
+            x = event.clientX - rect.width - 18;
+        }
+
+        if (rect.bottom > window.innerHeight - 12) {
+            y = event.clientY - rect.height - 18;
+        }
+
+        tooltip.style.left = x + 'px';
+        tooltip.style.top = y + 'px';
+    }
+
+    document.addEventListener('pointerover', function (event) {
+        if (event.pointerType !== 'mouse') return;
+
+        const card = event.target.closest('.product-mini');
+        if (!card) return;
+
+        activeCard = card;
+
+        let data = [];
+
+        try {
+            const rawStock = card.getAttribute('data-stock') || '[]';
+data = JSON.parse(rawStock);
+        } catch (e) {
+            data = [];
+        }
+
+        tooltip.innerHTML = renderStock(data);
+        tooltip.classList.add('visible');
+        moveTooltip(event);
+    });
+
+    document.addEventListener('pointermove', function (event) {
+        if (!activeCard) return;
+        moveTooltip(event);
+    });
+
+    document.addEventListener('pointerout', function (event) {
+        const card = event.target.closest('.product-mini');
+
+        if (!card) return;
+        if (card.contains(event.relatedTarget)) return;
+
+        activeCard = null;
+        tooltip.classList.remove('visible');
+    });
+})();

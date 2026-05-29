@@ -43,7 +43,11 @@
   }
 @endphp
 
-        <div class="product-mini">
+  <div class="product-mini"
+     data-code="{{ $prod->code }}"
+     data-color="{{ $prod->color }}"
+     data-stock='@json(collect($prod->existencias ?? [])->values(), JSON_UNESCAPED_UNICODE | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP | JSON_HEX_TAG)'>
+
    <img
   src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=="
   data-src="{{ $img }}?v={{ $prod->code }}{{ $prod->color }}"

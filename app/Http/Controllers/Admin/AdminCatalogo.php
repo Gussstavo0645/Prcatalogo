@@ -150,10 +150,14 @@ class AdminCatalogo extends Controller
 
     public function show($slug)
     {
-        $catalog = Catalogo::where('slug', $slug)->firstOrFail();
+         $catalog = Catalogo::where('slug', $slug)->firstOrFail();
 
-        $mes = '04/2026';
-        $tipo = 'N';
+    $mes = trim((string) $catalog->mesyope);
+    $tipo = trim((string) $catalog->tipocatalogo);
+
+    if ($mes === '' || $tipo === '') {
+        abort(500, 'Este catálogo no tiene mesyope o tipocatalogo definido.');
+    }
 
 
         $pages = $catalog->paginas()
@@ -222,23 +226,37 @@ class AdminCatalogo extends Controller
 
         // 2) traer inventario desde admin_ml
         $codes = $catalogItems->pluck('code')
-            ->filter()
-            ->map(fn($v) => trim((string)$v))
-            ->unique()
-            ->values();
-        $inventario = DB::connection('admin_ml')
-            ->table('inventario as i')
-            ->where('i.mesyope', $mes)
-            ->where('i.tipocatalogo', $tipo)
-            ->whereIn('i.Codprod', $codes)
-            ->select([
-                'i.Codprod as code',
-                'i.color as color',
-                'i.Descripcion as name',
-                'i.Precventa as price',
-            ])
-            ->get();
+    ->filter()
+    ->map(fn($v) => trim((string) $v))
+    ->flatMap(function ($code) {
+        if (str_contains($code, '-')) {
+            $partes = explode('-', $code, 2);
 
+            return [
+                $code,
+                trim($partes[0] ?? ''),
+            ];
+        }
+
+        return [$code];
+    })
+    ->filter()
+    ->unique()
+    ->values()
+    ->all();
+       $inventario = DB::connection('admin_ml')
+    ->table('inventario as i')
+    ->whereRaw('TRIM(i.mesyope) = ?', [$mes])
+    ->whereRaw('TRIM(i.tipocatalogo) = ?', [$tipo])
+    ->whereIn(DB::raw('TRIM(i.Codprod)'), $codes)
+    ->select([
+        'i.Codprod as code',
+        'i.color as color',
+        'i.Descripcion as name',
+        'i.Precventa as price',
+    ])
+    ->get();
+            
 
         // 3) indexar inventario por code|color
         $inventarioMap = $inventario->keyBy(function ($row) {
@@ -385,8 +403,9 @@ class AdminCatalogo extends Controller
 
             foreach ($r->file('pages', []) as $file) {
 
-                $fromName = $this->extractNumber($file->getClientOriginalName());
-                $n = $fromName ?? $next;
+               $n = $next;
+
+
 
                 while ($catalog->paginas()->where('page_number', $n)->exists()) {
                     $n++;
@@ -596,22 +615,23 @@ class AdminCatalogo extends Controller
         $data = $r->validate([
             'title'        => 'required|string|max:255',
             'description'  => 'nullable|string|max:1000',
-            'type'         => 'required|string|max:5',
+            
             'is_public'    => 'nullable',
             'mesyope'      => 'required|string|max:7',
             'tipocatalogo' => 'required|string|max:5',
         ]);
 
-        $catalog = Catalogo::create([
-            'title'        => $data['title'],
-            'description'  => $data['description'] ?? null,
-            'type'         => $data['type'],
-            'is_public'    => 0,
-            'slug'         => Str::slug($data['title']) . '-' . strtolower(Str::random(6)),
-            'mesyope'      => $data['mesyope'],
-            'tipocatalogo' => $data['tipocatalogo'],
+$tipoCatalogo = trim($data['tipocatalogo']);
 
-        ]);
+     $catalog = Catalogo::create([
+    'title'        => $data['title'],
+    'description'  => $data['description'] ?? null,
+    'type'         => $tipoCatalogo,
+    'is_public'    => 0,
+    'slug'         => Str::slug($data['title']) . '-' . strtolower(Str::random(6)),
+    'mesyope'      => $data['mesyope'],
+    'tipocatalogo' => $tipoCatalogo,
+]);
 
         $catalog->tiendas()->sync($r->input('tiendas', []));
 

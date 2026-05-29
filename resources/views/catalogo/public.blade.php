@@ -10,6 +10,7 @@
 @section('content')
     <div class="catalog-body ">
 
+        
         {{-- =====================================================
      CABECERA PROFESIONAL DEL CATÁLOGO
 ===================================================== --}}
@@ -17,10 +18,16 @@
 
             <div class="commerce-head-top">
 
-                <div class="commerce-brand">
-                    <span class="commerce-kicker">
-                        Catálogo digital
-                    </span>
+    <div class="commerce-brand">
+
+      <a href="{{ url('/') }}" class="btn-volver-catalogos">
+    <i class="bi bi-arrow-left"></i>
+    Volver al inicio
+</a>
+
+        <span class="commerce-kicker">
+            Catálogo digital
+        </span>
 
                     <div class="commerce-title-line">
                         <h3 id="tour-titulo-catalogo" class="commerce-title">
@@ -127,8 +134,12 @@
         </div>
 
         <div id="flipbook-wrap" data-tour="catalogo">
-            <div id="flipbook" data-slug="{{ $catalog->slug }}" data-total="{{ $total }}"
-                data-loaded="{{ min($initialTake, $total) }}">
+            <div id="flipbook"
+     data-slug="{{ $catalog->slug }}"
+     data-total="{{ $total }}"
+     data-loaded="{{ min($initialTake, $total) }}"
+     data-mesyope="{{ $catalog->mesyope }}"
+     data-tipocatalogo="{{ $catalog->tipocatalogo }}">
 
                 @if ($hasBlobPages)
                     @foreach ($pagesRender->take($initialTake) as $renderPage)

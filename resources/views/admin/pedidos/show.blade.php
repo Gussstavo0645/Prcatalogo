@@ -14,6 +14,77 @@
         </a>
     </div>
 
+    @if(session('success'))
+    <div class="alert alert-success">
+        {{ session('success') }}
+    </div>
+@endif
+
+@if(session('error'))
+    <div class="alert alert-danger">
+        {{ session('error') }}
+    </div>
+@endif
+
+<div class="card mb-3 shadow-sm">
+    <div class="card-body d-flex justify-content-between align-items-center flex-wrap gap-2">
+
+        <div>
+            <strong>Estado admin_ml:</strong><br>
+
+            @if(($pedido->estado_admin_ml ?? 'no_enviado') === 'enviado')
+                <span class="badge bg-success">Enviado a admin_ml</span>
+                <small class="text-muted d-block">
+                    ID web admin_ml: {{ $pedido->admin_ml_web_pedido_id }}
+                </small>
+
+            @elseif(($pedido->estado_admin_ml ?? 'no_enviado') === 'error')
+                <span class="badge bg-danger">Error al enviar</span>
+
+                @if($pedido->error_admin_ml)
+                    <small class="text-danger d-block">
+                        {{ $pedido->error_admin_ml }}
+                    </small>
+                @endif
+
+            @else
+                <span class="badge bg-secondary">No enviado</span>
+            @endif
+        </div>
+
+        <div>
+            @if(($pedido->estado_admin_ml ?? 'no_enviado') === 'enviado')
+                <button class="btn btn-success" disabled>
+                    Enviado a admin_ml
+                </button>
+
+            @elseif(($pedido->estado_admin_ml ?? 'no_enviado') === 'error')
+                <form action="{{ route('admin.pedidos.enviarAdminMl', $pedido) }}"
+                      method="POST"
+                      onsubmit="return confirm('Este pedido tuvo error. ¿Deseas intentar enviarlo nuevamente?');">
+                    @csrf
+
+                    <button type="submit" class="btn btn-warning">
+                        Reintentar envío a admin_ml
+                    </button>
+                </form>
+
+            @else
+                <form action="{{ route('admin.pedidos.enviarAdminMl', $pedido) }}"
+                      method="POST"
+                      onsubmit="return confirm('¿Enviar este pedido a admin_ml?');">
+                    @csrf
+
+                    <button type="submit" class="btn btn-primary">
+                        Enviar a admin_ml
+                    </button>
+                </form>
+            @endif
+        </div>
+
+    </div>
+</div>
+
     {{-- DATOS DEL CLIENTE --}}
     <div class="card mb-3 shadow-sm">
         <div class="card-header bg-dark text-white">

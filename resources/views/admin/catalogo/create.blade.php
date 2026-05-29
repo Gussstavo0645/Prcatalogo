@@ -60,11 +60,11 @@
 
                                 <div class="col-md-2">
                                     <label class="form-label fw-bold">Tipo</label>
-                                    <select name="tipocatalogo" class="form-select">
+                                    <select name="tipocatalogo" class="form-select" required>
                                         <option value="">Seleccionar</option>
                                         @foreach ($tipos as $t)
                                             <option value="{{ $t }}"
-                                                {{ request('tipocatalogo', $tipo) == $t ? 'selected' : '' }}>
+                                                {{ request('tipocatalogo', $tipo ?? 'N') == $t ? 'selected' : '' }}>
                                                 {{ $t }}
                                             </option>
                                         @endforeach
@@ -92,9 +92,16 @@
                         <form action="{{ route('admin.catalogs.store') }}" method="POST">
                             @csrf
 
-                            <input type="hidden" name="mesyope" value="{{ request('mesyope') ?: $mes ?? '05/2026' }}">
-                            <input type="hidden" name="tipocatalogo"
-                                value="{{ request('tipocatalogo') ?: $tipo ?? 'N' }}">
+                            @php
+    $mesActual = request('mesyope') ?: ($mes ?: '05/2026');
+    $tipoCatalogoActual = request('tipocatalogo') ?: ($tipo ?: 'N');
+@endphp
+
+<input type="hidden" name="mesyope" value="{{ $mesActual }}">
+<input type="hidden" name="tipocatalogo" value="{{ $tipoCatalogoActual }}">
+
+                            <input type="hidden" name="mesyope" value="{{ $mesActual }}">
+                            <input type="hidden" name="tipocatalogo" value="{{ $tipoCatalogoActual }}">
                             <div class="row g-3 align-items-end">
                                 <div class="col-md-4">
                                     <label class="form-label fw-bold">Título</label>
@@ -106,15 +113,15 @@
                                     <input name="description" class="form-control">
                                 </div>
 
-                                <div class="col-md-2">
-                                    <label class="form-label fw-bold">Tipo</label>
-                                    <select name="type" class="form-select">
-                                        <option value="N">N</option>
-                                        <option value="E">E</option>
-                                        <option value="F">F</option>
-                                        <option value="C">C</option>
-                                    </select>
-                                </div>
+                               <div class="col-md-2">
+    <label class="form-label fw-bold">Tipo catálogo</label>
+
+    <input type="text"
+           class="form-control"
+           value="{{ $tipoCatalogoActual }}"
+           readonly>
+</div>
+
 
                                 <div class="col-md-2 d-grid">
                                     <button class="btn btn-success">Crear</button>
@@ -379,7 +386,7 @@
                             </div>
                             @php
                                 $mesMostrar = request('mesyope') ?? $mes;
-                                if ($mesMostrar === '99/9999') {
+                                if ($mesMostrar === '05/2026') {
                                     $mesMostrar = null;
                                 }
                             @endphp
@@ -388,7 +395,7 @@
                                 {{ $mesMostrar ?: 'No definido' }}
                             </div>
                             <div class="summary-box">
-                                <div class="summary-title">Tipo</div>
+                                <div class="summary-title">Tipo catálogo</div>
                                 <div class="summary-value" style="font-size:16px;">
                                     {{ request('tipocatalogo', $tipo ?? 'N') }}
                                 </div>

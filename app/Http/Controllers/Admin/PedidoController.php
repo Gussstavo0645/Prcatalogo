@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Pedido;
+use App\Services\AdminMLCatalogoBridgeService;
+use Throwable;
 
 class PedidoController extends Controller
 {
@@ -58,4 +60,23 @@ class PedidoController extends Controller
 
         return back()->with('success', 'Estado actualizado');
     }
+
+    public function enviarAdminMl(Pedido $pedido, AdminMLCatalogoBridgeService $bridge)
+{
+    try {
+        $webPedidoId = $bridge->enviarPedido($pedido);
+
+        return back()->with(
+            'success',
+            'Pedido enviado correctamente a admin_ml. ID web: ' . $webPedidoId
+        );
+
+    } catch (Throwable $e) {
+        return back()->with(
+            'error',
+            'No se pudo enviar el pedido a admin_ml: ' . $e->getMessage()
+        );
+    }
+}
+
 }
