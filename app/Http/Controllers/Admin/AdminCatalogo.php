@@ -244,8 +244,15 @@ class AdminCatalogo extends Controller
     ->unique()
     ->values()
     ->all();
-       $inventario = DB::connection('admin_ml')
+
+
+     $inventario = DB::connection('admin_ml')
     ->table('inventario as i')
+    ->leftJoin('inventariom as m', function ($join) {
+        $join->on('m.Codigo', '=', 'i.Codprod')
+             ->on('m.Color', '=', 'i.Color');
+    })
+    ->leftJoin('inv_tproducto as t', 't.codigo', '=', 'm.TipoProducto')
     ->whereRaw('TRIM(i.mesyope) = ?', [$mes])
     ->whereRaw('TRIM(i.tipocatalogo) = ?', [$tipo])
     ->whereIn(DB::raw('TRIM(i.Codprod)'), $codes)
@@ -254,8 +261,16 @@ class AdminCatalogo extends Controller
         'i.color as color',
         'i.Descripcion as name',
         'i.Precventa as price',
+
+        // NUEVOS CAMPOS
+        'i.neto as neto',
+        't.Premio as Premio',
+        'i.Oferta as oferta',
+        'i.ofermes as ofermes',
+        'm.TipoProducto as tipo_producto',
     ])
     ->get();
+
             
 
         // 3) indexar inventario por code|color
@@ -300,17 +315,24 @@ class AdminCatalogo extends Controller
 
             $price = $invExact ? (float) ($invExact->price ?? 0) : 0;
 
-            return (object) [
-                'type' => 'producto',
-                'code' => $lookupCode,
-                'color' => $lookupColor,
-                'display_code' => $lookupCode . ($lookupColor !== '' ? '-' . $lookupColor : ''),
-                'name' => $name !== '' ? $name : 'Producto sin descripción',
-                'price' => $price,
-                'quantity' => (int) ($item->quantity ?? 1),
-                'page_number' => (int) ($item->page_number ?? 1),
-                'position' => (int) ($item->position ?? 1),
-            ];
+          return (object) [
+    'type' => 'producto',
+    'code' => $lookupCode,
+    'color' => $lookupColor,
+    'display_code' => $lookupCode . ($lookupColor !== '' ? '-' . $lookupColor : ''),
+    'name' => $name !== '' ? $name : 'Producto sin descripción',
+    'price' => $price,
+    'quantity' => (int) ($item->quantity ?? 1),
+    'page_number' => (int) ($item->page_number ?? 1),
+    'position' => (int) ($item->position ?? 1),
+
+    // NUEVOS CAMPOS
+    'neto' => $invExact->neto ?? 'N',
+    'Premio' => $invExact->Premio ?? 'N',
+    'oferta' => $invExact->oferta ?? null,
+    'ofermes' => $invExact->ofermes ?? null,
+    'tipo_producto' => $invExact->tipo_producto ?? null,
+];
         });
 
         $itemsCatalogo = $productos->concat($combos);
@@ -488,33 +510,52 @@ class AdminCatalogo extends Controller
             ]);
         }
 
-        $inventario = DB::connection('admin_ml')
-            ->table('inventario as i')
-            ->where('i.mesyope', $catalog->mesyope)
-            ->where('i.tipocatalogo', $catalog->tipocatalogo)
-            ->whereRaw('TRIM(i.Codprod) = ?', [$code])
-            ->whereRaw('TRIM(COALESCE(i.color, "")) = ?', [$color])
-            ->select([
-                'i.Codprod as code',
-                'i.color as color',
-                'i.Descripcion as name',
-                'i.Precventa as price',
-                'i.pagina as source_page',
-            ])
-            ->first();
+       $inventario = DB::connection('admin_ml')
+    ->table('inventario as i')
+    ->leftJoin('inventariom as m', function ($join) {
+        $join->on('m.Codigo', '=', 'i.Codprod')
+             ->on('m.Color', '=', 'i.Color');
+    })
+    ->leftJoin('inv_tproducto as t', 't.codigo', '=', 'm.TipoProducto')
+    ->whereRaw('TRIM(i.mesyope) = ?', [trim((string) $catalog->mesyope)])
+    ->whereRaw('TRIM(i.tipocatalogo) = ?', [trim((string) $catalog->tipocatalogo)])
+    ->whereRaw('TRIM(i.Codprod) = ?', [$code])
+    ->whereRaw('TRIM(COALESCE(i.color, "")) = ?', [$color])
+    ->select([
+        'i.Codprod as code',
+        'i.color as color',
+        'i.Descripcion as name',
+        'i.Precventa as price',
+        'i.pagina as source_page',
 
-        return response()->json([
-            'ok' => true,
-            'product' => [
-                'code' => $code,
-                'color' => $color,
-                'name' => $inventario->name ?? 'Producto sin descripción',
-                'price' => (float) ($inventario->price ?? 0),
-                'source_page' => $inventario->source_page ?? null,
-            ],
-            'quantity' => $finalQty,
-            'page_number' => $data['page_number'],
-        ]);
+        // NUEVOS CAMPOS
+        'i.neto as neto',
+        't.Premio as Premio',
+        'i.Oferta as oferta',
+        'i.ofermes as ofermes',
+        'm.TipoProducto as tipo_producto',
+    ])
+    ->first();
+
+return response()->json([
+    'ok' => true,
+    'product' => [
+        'code' => $code,
+        'color' => $color,
+        'name' => $inventario->name ?? 'Producto sin descripción',
+        'price' => (float) ($inventario->price ?? 0),
+        'source_page' => $inventario->source_page ?? null,
+
+        // NUEVOS CAMPOS
+        'neto' => $inventario->neto ?? 'N',
+        'Premio' => $inventario->Premio ?? 'N',
+        'oferta' => $inventario->oferta ?? null,
+        'ofermes' => $inventario->ofermes ?? null,
+        'tipo_producto' => $inventario->tipo_producto ?? null,
+    ],
+    'quantity' => $finalQty,
+    'page_number' => $data['page_number'],
+]);
     }
 
 
