@@ -1173,10 +1173,9 @@ function closeImgModal(){
 
 function isSingle() {
   const vw = window.innerWidth;
-  const vh = window.innerHeight;
-  const shortest = Math.min(vw, vh);
 
-  return shortest <= 600;
+  // Solo teléfono real
+  return vw <= 600;
 }
  // function isSingle() {
   //  return window.innerWidth <= 768;
@@ -1187,16 +1186,19 @@ function getBaseSize() {
   const vw = window.innerWidth;
   const vh = window.innerHeight;
 
-  const shortest = Math.min(vw, vh);
-
-  //  MÓVIL
-  if (isSingle ()) {
-    return { width: 460, height: 600, portrait: true };
+  // MÓVIL
+  if (isSingle()) {
+    return { width: 350, height: 500, portrait: true };
   }
 
-  //  TABLET (aquí entra tu tablet SIEMPRE)
-  if (shortest <= 750) {
-    return { width: 490, height: 610, portrait: false }
+  // TABLET VERTICAL
+  if (vw < vh && vw <= 900) {
+    return { width: 350, height: 500, portrait: true };
+  }
+
+  // TABLET HORIZONTAL / LAPTOP PEQUEÑA
+  if (vw <= 1200) {
+    return { width: 360, height: 500, portrait: false };
   }
 
   //  PC / LAPTOP
@@ -1224,6 +1226,9 @@ function getBaseSize() {
     maxShadowOpacity: 0.98,
     flippingTime:1400
   });
+
+  root.style.width = (base.portrait ? base.width : base.width * 2) + 'px';
+root.style.height = base.height + 'px';
 
 pageFlip.loadFromHTML(root.querySelectorAll('.page'));
 
@@ -1542,12 +1547,17 @@ box.innerHTML = `
 modalAcumulado?.show();
 
     try {
-      const res = await fetch(`/clientes/acumulado/${encodeURIComponent(codcliente)}`, {
-        headers: {
-          'Accept': 'application/json',
-          'X-Requested-With': 'XMLHttpRequest'
-        }
-      });
+      const flipbook = document.getElementById('flipbook');
+const mesope = flipbook?.dataset?.mesyope || '';
+
+console.log('MESOPE enviado:', mesope);
+
+const res = await fetch(`/clientes/acumulado/${encodeURIComponent(codcliente)}?mesope=${encodeURIComponent(mesope)}`, {
+  headers: {
+    'Accept': 'application/json',
+    'X-Requested-With': 'XMLHttpRequest'
+  }
+});
 
       const data = await res.json();
 

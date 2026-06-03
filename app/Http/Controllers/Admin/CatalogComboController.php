@@ -94,20 +94,39 @@ DB::transaction(function () use ($catalog, $data, $comboInv, $comboCode, $comboC
                 $productColor = trim((string) ($row['product_color'] ?? ''));
                 $quantity = (int) $row['quantity'];
 
-     $productoInvQuery = DB::connection('admin_ml')
-    ->table('inventario as i')
-    ->whereRaw('TRIM(i.Codprod) = ?', [$productCode])
-    ->whereRaw('TRIM(i.mesyope) = ?', [$mes]);
+   $productCode = trim((string) $row['product_code']);
+$productColor = trim((string) ($row['product_color'] ?? ''));
+$quantity = (int) $row['quantity'];
 
-if ($tipo !== '') {
-    $productoInvQuery->whereRaw('TRIM(i.tipocatalogo) = ?', [$tipo]);
-}
+$productoInvQuery = DB::connection('admin_ml')
+    ->table('inventario as i')
+    ->whereRaw('TRIM(CAST(i.Codprod AS CHAR)) = ?', [$productCode]);
 
 if ($productColor !== '') {
-    $productoInvQuery->whereRaw('TRIM(i.color) = ?', [$productColor]);
+    $productoInvQuery->whereRaw('TRIM(CAST(i.color AS CHAR)) = ?', [$productColor]);
 }
 
-$productoInv = $productoInvQuery->first();
+$productoInv = $productoInvQuery
+    ->select([
+        'i.Codprod',
+        'i.color',
+        'i.Descripcion',
+        'i.Precventa',
+        'i.mesyope',
+        'i.tipocatalogo',
+    ])
+    ->first();
+
+if (!$productoInv) {
+    throw new \Exception("No existe el producto interno {$productCode}-{$productColor} en inventario.");
+}
+
+CatalogComboItem::create([
+    'combo_id' => $combo->id,
+    'product_code' => $productCode,
+    'product_color' => $productColor,
+    'quantity' => $quantity,
+]);
 
                 if (!$productoInv) {
                     throw new \Exception("No existe el producto interno {$productCode}-{$productColor} en inventario.");

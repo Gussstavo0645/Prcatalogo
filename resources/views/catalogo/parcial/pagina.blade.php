@@ -7,7 +7,8 @@
 <div class="page {{ $pageNum === 1 ? 'page-cover' : '' }}"
      data-density="{{ $pageNum === 1 ? 'hard' : 'soft' }}">
 
-  <div class="page-badge">Página {{ $pageNum }}</div>
+  
+  <div class="page-badge">{{ $pageNum }}</div>
 
   <img
     src="{{ route('catalog_pages.image', $pagina->id) }}"

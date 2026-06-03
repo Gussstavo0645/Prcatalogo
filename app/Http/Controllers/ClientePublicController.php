@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Support\Facades\DB;
+use Illuminate\Http\Request;
+use Carbon\Carbon;
 use App\Models\Pedido;
 use App\Models\PremioEntregado;
 
@@ -62,10 +64,10 @@ class ClientePublicController extends Controller
         ], 404);
     }
 
-    public function acumulado($codcliente)
+    public function acumulado(Request $request, $codcliente)
 {
     $codcliente = trim($codcliente);
-    $mesope = now()->format('m/Y');
+    
 
     if ($codcliente === '') {
         return response()->json([
@@ -109,8 +111,16 @@ class ClientePublicController extends Controller
         ], 404);
     }
 
-    $inicioMes = now()->copy()->startOfMonth();
-    $finMes = now()->copy()->endOfMonth();
+$mesope = $request->query('mesope', now()->format('m/Y'));
+
+if (!preg_match('/^\d{1,2}\/\d{4}$/', $mesope)) {
+    $mesope = now()->format('m/Y');
+}
+
+[$mes, $anio] = explode('/', $mesope);
+
+$inicioMes = Carbon::create((int) $anio, (int) $mes, 1)->startOfMonth();
+$finMes = Carbon::create((int) $anio, (int) $mes, 1)->endOfMonth();
 
     // 3. Buscar último canje del mes
  $ultimoCanje = PremioEntregado::query()
@@ -124,11 +134,26 @@ class ClientePublicController extends Controller
     ->first();
 
     // 4. Sumar compras confirmadas/entregadas
-    $query = Pedido::query()
-        ->whereRaw('UPPER(TRIM(CodCliente)) = ?', [strtoupper($codcliente)])
-        ->whereBetween('created_at', [$inicioMes, $finMes])
-        ->whereIn('pago_metodo', ['efectivo', 'tarjeta', 'transferencia'])
-        ->whereIn('status', ['confirmado', 'entregado']);
+  // 4. Sumar compras confirmadas y pagadas del mes
+$query = Pedido::query()
+    ->whereRaw('UPPER(TRIM(CodCliente)) = ?', [strtoupper($codcliente)])
+    ->whereBetween('created_at', [$inicioMes, $finMes])
+
+    // Estado del pedido
+    ->whereIn('status', ['confirmado', 'enviado', 'entregado'])
+
+    // Estado del pago
+    ->whereRaw("UPPER(TRIM(COALESCE(pago_estado, ''))) = ?", ['PAGADO'])
+
+    // Métodos de pago que cuentan como compra pagada / contado
+    ->whereIn(DB::raw("UPPER(TRIM(COALESCE(pago_metodo, '')))"), [
+        'EFECTIVO',
+        'TRANSFERENCIA',
+        'NEOPAY',
+        'TARJETA',
+        'CONTADO',
+        'POS'
+    ]);
 
     // Si ya canjeó, solo acumula compras después del último canje
     if ($ultimoCanje) {

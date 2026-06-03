@@ -16,7 +16,6 @@
 
     </div>
 
-
     <div class="card shadow-sm">
 
         <div class="card-body p-0">
@@ -24,27 +23,17 @@
             <table class="table table-hover mb-0">
 
                 <thead class="table-dark">
-
                     <tr>
-
                         <th>ID</th>
-
                         <th>Cliente</th>
-
                         <th>Teléfono</th>
-
                         <th>Total</th>
-
                         <th>Productos</th>
-
                         <th>Estado</th>
-
+                        <th>Pago</th>
                         <th>Fecha</th>
-
-                        <th width="120">Acciones</th>
-
+                        <th width="160">Acciones</th>
                     </tr>
-
                 </thead>
 
                 <tbody>
@@ -72,15 +61,12 @@
                             </td>
 
                             <td>
-
                                 <span class="badge bg-info">
                                     {{ $pedido->items_count }}
                                 </span>
-
                             </td>
 
                             <td>
-
                                 @if($pedido->status == 'pendiente')
 
                                     <span class="badge bg-warning text-dark">
@@ -112,24 +98,33 @@
                                     </span>
 
                                 @endif
-
                             </td>
 
                             <td>
+                                @if(($pedido->pago_estado ?? 'pendiente') == 'pagado')
 
-                              {{ $pedido->created_at->format('d/m/Y h:i A') }}
+                                    <span class="badge bg-success">
+                                        Pagado
+                                    </span>
 
+                                @else
+
+                                    <span class="badge bg-warning text-dark">
+                                        Pendiente
+                                    </span>
+
+                                @endif
                             </td>
 
                             <td>
+                                {{ $pedido->created_at->format('d/m/Y h:i A') }}
+                            </td>
 
+                            <td>
                                 <a href="{{ route('admin.pedidos.show', $pedido->id) }}"
                                    class="btn btn-sm btn-dark">
-
                                     Ver
-
                                 </a>
-
                             </td>
 
                         </tr>
@@ -137,13 +132,9 @@
                     @empty
 
                         <tr>
-
-                            <td colspan="8" class="text-center text-muted py-4">
-
+                            <td colspan="9" class="text-center text-muted py-4">
                                 No hay pedidos aún
-
                             </td>
-
                         </tr>
 
                     @endforelse
@@ -156,13 +147,9 @@
 
     </div>
 
-
     <div class="mt-3">
-
         {{ $pedidos->links() }}
-
     </div>
-
 
 </div>
 

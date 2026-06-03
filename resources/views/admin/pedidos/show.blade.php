@@ -144,8 +144,36 @@
                     </form>
 
                 </div>
+                <div class="col-md-4 mt-3">
+    <strong>Estado del pago:</strong><br>
+
+    @if(($pedido->pago_estado ?? 'pendiente') == 'pagado')
+
+        <span class="badge bg-success">
+            Pago validado
+        </span>
+
+    @else
+
+        <span class="badge bg-warning text-dark mb-2">
+            Pago pendiente
+        </span>
+
+        <form action="{{ route('admin.pedidos.validarPago', $pedido->id) }}" method="POST" class="mt-2">
+            @csrf
+            @method('PATCH')
+
+            <button type="submit" class="btn btn-success btn-sm"
+                    onclick="return confirm('¿Validar el pago de este pedido?')">
+                Validar pago
+            </button>
+        </form>
+
+    @endif
+</div>
 
             </div>
+            
         </div>
     </div>
 
@@ -202,7 +230,7 @@
             </td>
         </tr>
 
-        @foreach($itemsCombo as $item)
+        @foreach($itemsCombo->unique(fn($item) => trim((string)$item->product_code).'-'.trim((string)$item->product_color))->values() as $item)
 
             @php
                 $code = trim((string) $item->product_code);

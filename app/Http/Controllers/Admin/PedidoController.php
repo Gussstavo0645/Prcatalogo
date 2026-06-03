@@ -79,4 +79,20 @@ class PedidoController extends Controller
     }
 }
 
+public function validarPago(Pedido $pedido)
+{
+    if ($pedido->status === 'cancelado') {
+        return back()->with('error', 'No se puede validar el pago de un pedido cancelado.');
+    }
+
+    $pedido->pago_estado = 'pagado';
+
+    if ($pedido->status === 'pendiente') {
+        $pedido->status = 'confirmado';
+    }
+
+    $pedido->save();
+
+    return back()->with('success', 'Pago validado correctamente.');
+}
 }

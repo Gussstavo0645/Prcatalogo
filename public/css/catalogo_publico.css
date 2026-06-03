@@ -4216,9 +4216,6 @@ body.catalog-body {
    IMAGEN DE PRODUCTO UN POCO MÁS GRANDE
 ===================================================== */
 
-/* =====================================================
-   TAMAÑO DE IMAGEN SEGÚN DISPOSITIVO
-===================================================== */
 
 /* Tablet: un poco más grande, pero sin salirse */
 /* =====================================================
@@ -4239,14 +4236,16 @@ body.catalog-body {
 
 @media (min-width: 601px) and (max-width: 1199px){
   .product-mini img{
-    height: 82px !important;
+    height: 80px !important;
   }
 }
 
 @media (min-width: 1200px){
-  .product-mini img{
-    height: 105px !important;
-  }
+ .product-mini img{
+    height: 180px !important;
+    width: 100%;
+    object-fit: contain;
+}
 }
 /* =====================================================
    OPCIONES DE CANJE - TEXTO VISIBLE
@@ -4531,10 +4530,10 @@ body.catalog-body {
 
 .p-name{
   font-size: 10px !important;
-  line-height: 1.05 !important;
-  margin-top: 2px !important;
-  min-height: 22px !important;
-  max-height: 22px !important;
+  line-height: 1 !important;
+  margin-top: 1px !important;
+  min-height: 29px !important;
+  max-height: 29px !important;
 
   display: -webkit-box !important;
   -webkit-line-clamp: 2 !important;
@@ -4543,9 +4542,9 @@ body.catalog-body {
 }
 
 .p-price{
-  font-size: 11px !important;
-  line-height: 1 !important;
-  margin-top: 2px !important;
+  font-size: 15px !important;
+  line-height: 1.2 !important;
+  margin-top: -3px !important;
 }
 
 .product-mini button.badge{
@@ -4568,3 +4567,217 @@ body.catalog-body {
   border-radius: 999px !important;
   white-space: nowrap !important;
 }
+
+/* =====================================================
+   FORZAR IMAGEN MÁS GRANDE EN TARJETA DE PRODUCTO
+===================================================== */
+
+.product-mini img,
+.product-mini img.product-thumb{
+    width: 125% !important;
+    max-width: none !important;
+    height: 186px !important;
+    object-fit: contain !important;
+    object-position: center !important;
+
+    margin-left: -12.5% !important;
+    margin-right: -12.5% !important;
+
+    display: block !important;
+}
+
+/* =====================================================
+   NÚMERO DE PÁGINA ABAJO A LA DERECHA
+===================================================== */
+
+.page-badge{
+    position: absolute !important;
+    top: auto !important;
+    left: auto !important;
+    right: 1px !important;
+    bottom: 1px !important;
+
+    width: 30px !important;
+    height: 30px !important;
+    padding: 0 !important;
+
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+
+    border-radius: 50% !important;
+    background: rgba(25, 27, 49, 0.78) !important;
+    color: #fff !important;
+
+    font-size: 13px !important;
+    font-weight: 900 !important;
+    line-height: 1 !important;
+
+    z-index: 30 !important;
+    pointer-events: none !important;
+    box-shadow: 0 6px 14px rgba(0,0,0,.25) !important;
+}
+
+@media (max-width: 600px){
+    .page-badge{
+        right: 8px !important;
+        bottom: 8px !important;
+        width: 24px !important;
+        height: 24px !important;
+        font-size: 11px !important;
+    }
+}
+
+
+/* =====================================================
+   CONTROLES MANUALES DEL CATÁLOGO
+===================================================== */
+
+/* Área donde van los 9 productos */
+.products-overlay{
+    top: 15px !important;
+    left: 25px !important;
+    right: 25px !important;
+    bottom: 24px !important;
+    gap: 4px !important;
+}
+
+/* Tarjeta del producto */
+.product-mini{
+    padding: 8px !important;
+    border-radius: 16px !important;
+}
+
+/* Imagen del producto */
+.product-mini img,
+.product-mini img.product-thumb{
+    width: 100% !important;
+    max-width: 100% !important;
+    height: 180px !important;
+    object-fit: contain !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+}
+
+/* Código */
+.p-code{
+    font-size: 14px !important;
+    margin-top: 3px !important;
+}
+
+/* Nombre */
+.p-name{
+    font-size: 14px !important;
+    line-height: 1.1 !important;
+}
+
+/* Precio */
+.p-price{
+    font-size: 18px !important;
+}
+
+/* Botón agregar */
+.product-mini button.badge{
+    height: 22px !important;
+    font-size: 15px !important;
+}
+
+/* =====================================================
+   AJUSTE MÓVIL CATÁLOGO
+===================================================== */
+@media (max-width: 600px){
+
+  #flipbook-wrap{
+    padding: 8px 8px 90px !important;
+    align-items: flex-start !important;
+    overflow: visible !important;
+  }
+
+  #flipbook{
+    margin-top: 20px !important;
+  }
+
+  .products-overlay{
+    outline: none !important;
+
+    top: 10px !important;
+    left: 14px !important;
+    right: 14px !important;
+    bottom: 34px !important;
+
+    gap: 6px !important;
+  }
+
+  .product-mini{
+    padding: 2px !important;
+    border-radius: 12px !important;
+  }
+
+  .product-mini img,
+  .product-mini img.product-thumb{
+    height: 120px !important;
+    max-height: 45% !important;
+    object-fit: contain !important;
+  }
+
+  .p-code{
+    font-size: 11px !important;
+    margin-top: 2px !important;
+  }
+
+  .p-name{
+    font-size: 7px !important;
+    line-height: 1 !important;
+    -webkit-line-clamp: 2 !important;
+  }
+
+  .p-price{
+    font-size: 11px !important;
+    line-height: 1.5 !important;
+    margin-top: -12px !important;
+    
+  }
+
+  .product-mini button.badge{
+    height: 18px !important;
+    font-size: 8px !important;
+    padding: 2px 4px !important;
+  }
+
+  .page-badge{
+    right: 8px !important;
+    bottom: 8px !important;
+    left: auto !important;
+    top: auto !important;
+  }
+
+  .flip-controls{
+    margin-top: 10px !important;
+    padding-bottom: 20px !important;
+  }
+
+
+  .floating-buttons{
+    position: fixed !important;
+    left: 10px !important;
+    bottom: 22px !important;
+
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    gap: 10px !important;
+
+    z-index: 9999 !important;
+  }
+
+  .float-btn{
+    width: 52px !important;
+    height: 52px !important;
+    font-size: 21px !important;
+  }
+
+  .float-btn:hover{
+    transform: scale(1.08) !important;
+  }
+}
+
