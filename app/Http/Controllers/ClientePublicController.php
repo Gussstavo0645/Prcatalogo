@@ -12,7 +12,9 @@ class ClientePublicController extends Controller
 {
     public function detectar($codcliente)
     {
-        $codcliente = trim($codcliente);
+         
+
+            $codcliente = trim($codcliente);
 
         if ($codcliente === '') {
             return response()->json([
@@ -20,9 +22,12 @@ class ClientePublicController extends Controller
                 'message' => 'Debe ingresar un código de cliente.'
             ], 422);
         }
+$admin = DB::connection('admin_ml');
+        try {
+         
 
         // 1. Buscar primero en bodega como cliente no inscrito
-        $clienteNoInscrito = DB::connection('admin_ml')
+        $clienteNoInscrito = $admin
             ->table('bodega')
             ->whereRaw('UPPER(TRIM(CodigoClieNoInscr)) = ?', [strtoupper($codcliente)])
             ->select('CodigoClieNoInscr')
@@ -40,7 +45,7 @@ class ClientePublicController extends Controller
         }
 
         // 2. Si no está en bodega, buscar en clientes inscritos
-       $cliente = DB::connection('admin_ml')
+       $cliente = $admin
     ->table('clientes')
     ->whereRaw('UPPER(TRIM(CodCliente)) = ?', [strtoupper($codcliente)])
     ->select('Codcliente', 'Nom1cliente', 'Ape1cliente')
@@ -62,10 +67,15 @@ class ClientePublicController extends Controller
             'ok' => false,
             'message' => 'Código de cliente no encontrado.'
         ], 404);
+
+        } finally {
+            $this->cerrarAdmin();
+        }   
     }
 
     public function acumulado(Request $request, $codcliente)
 {
+    
     $codcliente = trim($codcliente);
     
 
@@ -75,9 +85,11 @@ class ClientePublicController extends Controller
             'message' => 'Debe ingresar un código de cliente.'
         ], 422);
     }
-
+$admin = DB::connection('admin_ml');
+    try {
     // 1. Revisar primero si es cliente no inscrito
-    $clienteNoInscrito = DB::connection('admin_ml')
+    $clienteNoInscrito = $admin
+        
         ->table('bodega')
         ->whereRaw('UPPER(TRIM(CodigoClieNoInscr)) = ?', [strtoupper($codcliente)])
         ->select('CodigoClieNoInscr')
@@ -98,7 +110,7 @@ class ClientePublicController extends Controller
     }
                                                                                                                                                    
     // 2. Buscar cliente inscrito
-    $cliente = DB::connection('admin_ml')
+    $cliente = $admin
     ->table('clientes')
     ->whereRaw('UPPER(TRIM(CodCliente)) = ?', [strtoupper($codcliente)])
     ->select('Codcliente', 'Nom1cliente', 'Ape1cliente')
@@ -110,7 +122,9 @@ class ClientePublicController extends Controller
             'message' => 'Código de cliente no encontrado.'
         ], 404);
     }
-
+} finally {
+    $this->cerrarAdmin();
+}
 $mesope = $request->query('mesope', now()->format('m/Y'));
 
 if (!preg_match('/^\d{1,2}\/\d{4}$/', $mesope)) {
@@ -185,6 +199,7 @@ $query = Pedido::query()
         'opciones_premio' => $opciones,
         'mejor_opcion' => $opciones[0] ?? null,
     ]);
+
 }
 
 private function calcularOpcionesPremios(float $disponible): array
@@ -234,6 +249,7 @@ private function calcularOpcionesPremios(float $disponible): array
 
 public function codigoNoInscritoPorTienda($storeId)
 {
+    
     $store = \App\Models\Store::find($storeId);
 
     if (!$store) {
@@ -242,8 +258,10 @@ public function codigoNoInscritoPorTienda($storeId)
             'message' => 'Tienda no encontrada.'
         ], 404);
     }
+    $admin = DB::connection('admin_ml');
+    try {
 
-    $bodega = DB::connection('admin_ml')
+    $bodega = $admin
         ->table('bodega')
         ->whereRaw('UPPER(TRIM(Nombodega)) = ?', [strtoupper(trim($store->name))])
         ->select('Codbodega', 'Nombodega', 'CodigoClieNoInscr')
@@ -261,5 +279,14 @@ public function codigoNoInscritoPorTienda($storeId)
         'codigo' => trim($bodega->CodigoClieNoInscr),
         'bodega' => $bodega->Nombodega,
     ]);
+    } finally {
+        $this->cerrarAdmin();
+    }
 }
+
+private function cerrarAdmin(): void
+{
+    DB::disconnect('admin_ml');
+}
+
 }

@@ -25,12 +25,15 @@ class AdminCatalogo extends Controller
         set_time_limit(120);
         ini_set('memory_limit', '1024M');
 
+        $admin = DB::connection('admin_ml');
+
+        try{
 
         $catalogs = Catalogo::select('id', 'title', 'description', 'is_public', 'slug')
             ->orderByDesc('id')
             ->get();
 
-        $meses = DB::connection('admin_ml')
+        $meses = $admin
             ->table('inventario')
             ->selectRaw('TRIM(mesyope) as mesyope')
             ->whereNotNull('mesyope')
@@ -39,7 +42,7 @@ class AdminCatalogo extends Controller
             ->orderByDesc('mesyope')
             ->pluck('mesyope');
 
-        $tipos = DB::connection('admin_ml')
+        $tipos = $admin
             ->table('inventario')
             ->selectRaw('TRIM(tipocatalogo) as tipocatalogo')
             ->whereNotNull('tipocatalogo')
@@ -86,7 +89,7 @@ class AdminCatalogo extends Controller
             if ($items->isNotEmpty()) {
                 $codes = $items->pluck('code')->filter()->unique()->values()->all();
 
-                $inventarioQuery = DB::connection('admin_ml')
+                $inventarioQuery = $admin
                     ->table('inventario as i')
                     ->whereIn('i.Codprod', $codes);
 
@@ -146,6 +149,9 @@ class AdminCatalogo extends Controller
             'tipos',
             'tiendas'
         ));
+        } finally {
+            DB::disconnect('admin_ml');
+        }
     }
 
     public function show($slug)
@@ -244,9 +250,11 @@ class AdminCatalogo extends Controller
     ->unique()
     ->values()
     ->all();
+$admin = DB::connection('admin_ml');
 
+try {
 
-     $inventario = DB::connection('admin_ml')
+     $inventario = $admin
     ->table('inventario as i')
     ->leftJoin('inventariom as m', function ($join) {
         $join->on('m.Codigo', '=', 'i.Codprod')
@@ -379,7 +387,12 @@ class AdminCatalogo extends Controller
         }
 
         return view('catalogo.show', compact('catalog', 'pagesRender'));
+
+} finally {
+    DB::disconnect('admin_ml');
     }
+
+}
 
     public function edit($catalog)
     {
@@ -510,7 +523,11 @@ class AdminCatalogo extends Controller
             ]);
         }
 
-       $inventario = DB::connection('admin_ml')
+        $admin = DB::connection('admin_ml');
+
+        try{
+
+       $inventario = $admin
     ->table('inventario as i')
     ->leftJoin('inventariom as m', function ($join) {
         $join->on('m.Codigo', '=', 'i.Codprod')
@@ -555,8 +572,9 @@ return response()->json([
     ],
     'quantity' => $finalQty,
     'page_number' => $data['page_number'],
-]);
-    }
+]);} finally {
+    DB::disconnect('admin_ml'); 
+    }}
 
 
     public function updateProductQty(Request $r, Catalogo $catalog, Product $product)
@@ -753,7 +771,10 @@ $tipoCatalogo = trim($data['tipocatalogo']);
             $catalog = Catalogo::select('id', 'title')->find($catalogId);
         }
 
-        $productsQuery = DB::connection('admin_ml')
+        $admin = DB::connection('admin_ml');
+        try{
+
+        $productsQuery = $admin
             ->table('inventario as i');
 
         if ($mes !== '') {
@@ -793,6 +814,9 @@ $tipoCatalogo = trim($data['tipocatalogo']);
             'tipo',
             'pageFilter'
         ));
+        } finally {
+            DB::disconnect('admin_ml');
+        }
     }
 
 
@@ -829,7 +853,9 @@ $tipoCatalogo = trim($data['tipocatalogo']);
 
     private function sincronizarTiendasDesdeBodega()
     {
-        $bodegas = DB::connection('admin_ml')
+        $admin = DB::connection('admin_ml');
+        try {
+        $bodegas = $admin
             ->table('bodega')
             ->select('Codbodega', 'Nombodega')
             ->orderBy('Codbodega')
@@ -851,14 +877,19 @@ $tipoCatalogo = trim($data['tipocatalogo']);
         }
 
         return Store::orderBy('bodega_codigo')->get();
+        } finally {
+            DB::disconnect('admin_ml');
+        }
     }
 
     private function actualizarCodigosBodegaEnStores()
     {
-        $bodegas = DB::connection('admin_ml')
-            ->table('bodega')
-            ->select('Codbodega', 'Nombodega')
-            ->get();
+        $admin = DB::connection('admin_ml');
+        try {
+            $bodegas = $admin
+                ->table('bodega')
+                ->select('Codbodega', 'Nombodega')
+                ->get();
 
         foreach ($bodegas as $bodega) {
             $nombreBodega = strtoupper(trim($bodega->Nombodega));
@@ -869,6 +900,10 @@ $tipoCatalogo = trim($data['tipocatalogo']);
                 $store->bodega_codigo = $bodega->Codbodega;
                 $store->save();
             }
+        }
+        
+        } finally {
+            DB::disconnect('admin_ml');
         }
     }
 }

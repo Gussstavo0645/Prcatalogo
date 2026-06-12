@@ -157,6 +157,13 @@
             <button id="btnFullscreen" class="fullscreen-btn">
                 ⛶
             </button>
+            <button type="button" id="fsPrev" class="fs-page-arrow fs-page-arrow-left">
+    ‹
+</button>
+
+<button type="button" id="fsNext" class="fs-page-arrow fs-page-arrow-right">
+    ›
+</button>
             <div class="flip-controls" id="tour-controles-paginas">
                 <button type="button" id="prev" class="btn btn-outline-secondary">
                     ⟵ Anterior
@@ -171,43 +178,46 @@
                 </button>
             </div>
 
-            <div id="cartFab" class="cart-fab">
-                <span id="cartCountFab" class="cart-count">0</span>
-                Carrito
+           
+
+        </div>
+        </div> {{-- cierre de flipbook-wrap --}}
+
+        <div id="cartFab" class="cart-fab">
+            <span id="cartCountFab" class="cart-count">0</span>
+            Carrito
+        </div>
+
+        <div id="cartPanel" class="cart-panel d-none">
+            <div class="cart-head d-flex justify-content-between align-items-center">
+                <div class="fw-semibold">Carrito</div>
+                <button class="btn btn-sm btn-outline-secondary" onclick="toggleCart()">Cerrar</button>
             </div>
 
-            <div id="cartPanel" class="cart-panel d-none">
-                <div class="cart-head d-flex justify-content-between align-items-center">
-                    <div class="fw-semibold">Carrito</div>
-                    <button class="btn btn-sm btn-outline-secondary" onclick="toggleCart()">Cerrar</button>
+            <div id="cartItems" class="cart-items"></div>
+
+            <div class="cart-foot">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <strong>Total: <span id="cartTotal">Q 0.00</span></strong>
                 </div>
 
-                <div id="cartItems" class="cart-items"></div>
+                <div class="d-grid gap-2">
+                    <button type="button" class="btn btn-success" onclick="checkout()">
+                        Ir a pagar
+                    </button>
 
-                <div class="cart-foot">
-                    <div class="d-flex justify-content-between align-items-center mb-2">
-                        <strong>Total: <span id="cartTotal">Q 0.00</span></strong>
-                    </div>
-
-                    <div class="d-grid gap-2">
-                        <button type="button" class="btn btn-success" onclick="checkout()">
-                            Ir a pagar
-                        </button>
-
-                        <button type="button" class="btn btn-outline-danger" onclick="clearCart()">
-                            Vaciar carrito
-                        </button>
-                    </div>
+                    <button type="button" class="btn btn-outline-danger" onclick="clearCart()">
+                        Vaciar carrito
+                    </button>
                 </div>
             </div>
+        </div>
 
-            <div id="imgModal">
-                <div class="img-modal-box">
-                    <button type="button" class="img-close" id="imgModalClose">&times;</button>
-                    <img id="imgModalSrc" alt="Zoom producto">
-                </div>
+        <div id="imgModal">
+            <div class="img-modal-box">
+                <button type="button" class="img-close" id="imgModalClose">&times;</button>
+                <img id="imgModalSrc" alt="Zoom producto">
             </div>
-
         </div>
 
         {{-- ======= CARRITO UI ======= --}}
@@ -318,7 +328,7 @@
                                 <div class="col-md-7">
                                     <label class="form-label">Nombre *</label>
                                     <input type="text" class="form-control" id="cliNombre"
-                                        placeholder="Nombre completo" disabled>
+                                        placeholder="Nombre completo" >
                                 </div>
 
                                 <div class="col-md-4">

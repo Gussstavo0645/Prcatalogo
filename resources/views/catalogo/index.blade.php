@@ -183,38 +183,40 @@
 
  <div class="cash-rewards-showcase">
 
-    <div class="reward-premium-card reward-premium-main">
-        <span class="reward-tag">Premio 1</span>
+    @forelse($premiosContado as $premio)
+        @php
+            $imgPremio = !empty($premio->foto_publica)
+                ? asset('storage/' . $premio->foto_publica)
+                : asset('imagenes/PREMI' . $loop->iteration . '.png');
+        @endphp
 
-        <div class="reward-image-stage">
-            <img src="{{ asset('imagenes/PREMI1.png') }}"
-     class="reward-zoom-img"
-     data-full="{{ asset('imagenes/PREMI1.png') }}">
-                
+        <div class="reward-premium-card {{ $loop->first ? 'reward-premium-main' : 'reward-premium-secondary' }}">
+            <span class="reward-tag">
+                Premio {{ $loop->iteration }}
+            </span>
+
+            <div class="reward-image-stage">
+                <img src="{{ $imgPremio }}"
+                     class="reward-zoom-img"
+                     data-full="{{ $imgPremio }}"
+                     alt="{{ $premio->descripcion_rango }}">
+            </div>
+
+            <div class="reward-info">
+                <strong>
+                    Acumula Q{{ number_format($premio->VALORMIN, 0) }}
+                </strong>
+
+                <span>
+                    Al llegar a Q{{ number_format($premio->VALORMIN, 2) }} acumulados en compras al contado, podrás optar a este premio.
+                </span>
+            </div>
         </div>
-
-        <div class="reward-info">
-            <strong>Acumula Q425</strong>
-            <span>Obtén este premio al alcanzar un acumulado de Q425.00 en compras al contado.</span>
-        </div>
-    </div>
-
-    <div class="reward-premium-card reward-premium-secondary">
-        <span class="reward-tag">Premio 2</span>
-
-        <div class="reward-image-stage">
-            <img src="{{ asset('imagenes/PREMI2.png') }}"
-     
-     class="reward-zoom-img"
-     data-full="{{ asset('imagenes/PREMI2.png') }}">
-                 
-        </div>
-
-        <div class="reward-info">
-            <strong>Acumula Q725</strong>
-            <span>Al llegar a Q725.00 acumulados en compras al contado, podrás optar a este premio.</span>
-        </div>
-    </div>
+    @empty
+        <p style="color: white;">
+            No hay premios configurados para este mes.
+        </p>
+    @endforelse
 
 </div>
 

@@ -3,18 +3,17 @@
 namespace App\Http\Controllers;
 
 use App\Models\Bodega;
-use App\Models\InvExistencias;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class AdminStoreController extends Controller
 {
-
     public function index(Request $request)
     {
         $bodegaSeleccionada = $request->input('bodega');
         $buscar = trim($request->input('q', ''));
         $soloStock = $request->boolean('solo_stock');
+
         $codigoBuscado = null;
         $colorBuscado = null;
 
@@ -22,67 +21,66 @@ class AdminStoreController extends Controller
             [$codigoBuscado, $colorBuscado] = array_map('trim', explode('-', $buscar, 2));
         }
 
-        // Solo carga la lista de bodegas
-        $bodegas = DB::connection('admin_ml')
-            ->table('bodega')
-            ->select('Codbodega', 'Nombodega')
-            ->orderBy('Codbodega')
-            ->get();
-
+        $bodegas = collect();
         $productos = null;
         $bodegaActual = null;
 
-        // Solo carga productos si el usuario seleccionó una bodega
-        if (!empty($bodegaSeleccionada)) {
+        $admin = DB::connection('admin_ml');
 
-            $bodegaActual = DB::connection('admin_ml')
+        try {
+            // IMPORTANTE: cargar lista de bodegas
+            $bodegas = $admin
                 ->table('bodega')
                 ->select('Codbodega', 'Nombodega')
-                ->where('Codbodega', $bodegaSeleccionada)
-                ->first();
+                ->orderBy('Codbodega')
+                ->get();
 
-            $productos = DB::connection('admin_ml')
-                ->table('inv_existencias as a')
-                ->leftJoin('inventariom as b', function ($join) {
-                    $join->on('a.Codigo', '=', 'b.Codigo')
-                        ->on('a.Color', '=', 'b.Color');
-                })
-                ->select(
-                    'a.Bodega',
-                    'a.Ubicacion',
-                    'a.Codigo',
-                    'a.Color',
-                    'b.Descripcion',
-                    'a.Saldo as stock_total'
-                )
-                ->where('a.Bodega', $bodegaSeleccionada)
+            // Solo carga productos si el usuario seleccionó una bodega
+            if (!empty($bodegaSeleccionada)) {
+                $bodegaActual = $admin
+                    ->table('bodega')
+                    ->select('Codbodega', 'Nombodega')
+                    ->where('Codbodega', $bodegaSeleccionada)
+                    ->first();
 
-                // Buscar por código, color o descripción
-                // Buscar por código, color o descripción
-                // También permite buscar formato: 1011-1 = Codigo 1011 y Color 1
-                ->when($buscar !== '', function ($query) use ($buscar, $codigoBuscado, $colorBuscado) {
-                    $query->where(function ($q) use ($buscar, $codigoBuscado, $colorBuscado) {
+                $productos = $admin
+                    ->table('inv_existencias as a')
+                    ->leftJoin('inventariom as b', function ($join) {
+                        $join->on('a.Codigo', '=', 'b.Codigo')
+                             ->on('a.Color', '=', 'b.Color');
+                    })
+                    ->select(
+                        'a.Bodega',
+                        'a.Ubicacion',
+                        'a.Codigo',
+                        'a.Color',
+                        'b.Descripcion',
+                        'a.Saldo as stock_total'
+                    )
+                    ->where('a.Bodega', $bodegaSeleccionada)
+                    ->when($buscar !== '', function ($query) use ($buscar, $codigoBuscado, $colorBuscado) {
+                        $query->where(function ($q) use ($buscar, $codigoBuscado, $colorBuscado) {
+                            if ($codigoBuscado !== null && $colorBuscado !== null) {
+                                $q->whereRaw('TRIM(a.Codigo) = ?', [$codigoBuscado])
+                                  ->whereRaw('TRIM(a.Color) = ?', [$colorBuscado]);
+                            } else {
+                                $q->where('a.Codigo', 'like', "%{$buscar}%")
+                                  ->orWhere('a.Color', 'like', "%{$buscar}%")
+                                  ->orWhere('b.Descripcion', 'like', "%{$buscar}%");
+                            }
+                        });
+                    })
+                    ->when($soloStock, function ($query) {
+                        $query->where('a.Saldo', '>', 0);
+                    })
+                    ->orderBy('a.Ubicacion')
+                    ->orderBy('a.Codigo')
+                    ->paginate(100)
+                    ->withQueryString();
+            }
 
-                        if ($codigoBuscado !== null && $colorBuscado !== null) {
-                            $q->whereRaw('TRIM(a.Codigo) = ?', [$codigoBuscado])
-                                ->whereRaw('TRIM(a.Color) = ?', [$colorBuscado]);
-                        } else {
-                            $q->where('a.Codigo', 'like', "%{$buscar}%")
-                                ->orWhere('a.Color', 'like', "%{$buscar}%")
-                                ->orWhere('b.Descripcion', 'like', "%{$buscar}%");
-                        }
-                    });
-                })
-
-                // Mostrar solo productos con stock
-                ->when($soloStock, function ($query) {
-                    $query->where('a.Saldo', '>', 0);
-                })
-
-                ->orderBy('a.Ubicacion')
-                ->orderBy('a.Codigo')
-                ->paginate(100)
-                ->withQueryString();
+        } finally {
+            $this->cerrarAdmin();
         }
 
         return view('admin.stores.index', compact(
@@ -109,7 +107,8 @@ class AdminStoreController extends Controller
 
         Bodega::create($data);
 
-        return redirect()->route('admin.stores.index')
+        return redirect()
+            ->route('admin.stores.index')
             ->with('ok', 'Bodega creada correctamente');
     }
 
@@ -145,5 +144,13 @@ class AdminStoreController extends Controller
         $store->delete();
 
         return back()->with('ok', 'Bodega eliminada');
+    }
+
+    private function cerrarAdmin(): void
+    {
+        DB::disconnect('admin_ml');
+
+        
+        // DB::purge('admin_ml');
     }
 }

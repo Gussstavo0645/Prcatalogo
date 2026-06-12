@@ -2,10 +2,21 @@
   $pagina = $renderPage['pagina'];
   $pageNum = (int) $renderPage['page_number_label'];
   $items = collect($renderPage['items'] ?? []);
+
+  // Clave única para NO confundir página 38 parte 1 con página 38 parte 2
+  $itemsKey = $items->map(function ($p) {
+      return ($p->code ?? '') . '-' . ($p->color ?? '');
+  })->implode('|');
+
+  $renderKey = $pagina->id . '-' . $pageNum . '-' . md5($itemsKey);
 @endphp
 
+
 <div class="page {{ $pageNum === 1 ? 'page-cover' : '' }}"
-     data-density="{{ $pageNum === 1 ? 'hard' : 'soft' }}">
+     data-density="{{ $pageNum === 1 ? 'hard' : 'soft' }}"
+     data-page-number="{{ $pageNum }}"
+     data-page-id="{{ $pagina->id }}"
+     data-render-key="{{ $renderKey }}">
 
   
   <div class="page-badge">{{ $pageNum }}</div>

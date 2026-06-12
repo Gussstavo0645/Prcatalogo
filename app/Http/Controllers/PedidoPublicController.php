@@ -41,31 +41,38 @@ class PedidoPublicController extends Controller
 
  
 
-          $codigoCliente = trim($data['CodCliente']);
+        $codigoCliente = trim($data['CodCliente']);
 
-$clienteNoInscrito = DB::connection('admin_ml')
-    ->table('bodega')
-    ->whereRaw('TRIM(CodigoClieNoInscr) = ?', [$codigoCliente])
-    ->select('CodigoClieNoInscr')
-    ->first();
-
+$clienteNoInscrito = null;
 $clienteRemoto = null;
 
-if (!$clienteNoInscrito) {
-    $clienteRemoto = DB::connection('admin_ml')
-        ->table('clientes')
-        ->whereRaw('TRIM(Codcliente) = ?', [$codigoCliente])
-        ->select('Codcliente')
+$admin = DB::connection('admin_ml');
+
+try {
+    $clienteNoInscrito = $admin
+        ->table('bodega')
+        ->whereRaw('TRIM(CodigoClieNoInscr) = ?', [$codigoCliente])
+        ->select('CodigoClieNoInscr')
         ->first();
+
+    if (!$clienteNoInscrito) {
+        $clienteRemoto = $admin
+            ->table('clientes')
+            ->whereRaw('TRIM(Codcliente) = ?', [$codigoCliente])
+            ->select('Codcliente')
+            ->first();
+    }
+} finally {
+    DB::disconnect('admin_ml');
 }
 
- if (!$clienteRemoto && !$clienteNoInscrito) {
+if (!$clienteRemoto && !$clienteNoInscrito) {
     return response()->json([
         'message' => 'El código de cliente no existe o no está autorizado.'
     ], 422);
- }
+}
 
- $esClienteNoInscrito = (bool) $clienteNoInscrito;
+$esClienteNoInscrito = (bool) $clienteNoInscrito;
 
 $totalInicial = collect($data['items'])->sum(function ($item) {
     return (float) ($item['price'] ?? 0) * (int) ($item['quantity'] ?? 1);
@@ -77,8 +84,7 @@ if (!$esClienteNoInscrito && $totalInicial < 225) {
         'message' => 'El pedido mínimo para clientes inscritos es de Q225.00.'
     ], 422);
 }
-
-          return DB::transaction(function () use ($data, $esClienteNoInscrito) {
+        return DB::transaction(function () use ($data, $esClienteNoInscrito) {
 
     $catalogoPedido = DB::table('catalogs')
         ->where('id', $data['catalog_id'])
@@ -90,8 +96,6 @@ if (!$esClienteNoInscrito && $totalInicial < 225) {
         ], 422);
     }
 
-    $mesCatalogo = trim((string) $catalogoPedido->mesyope);
-    $tipoCatalogo = trim((string) $catalogoPedido->tipocatalogo);
 
     $pedido = Pedido::create([
                     'store_id' => $data['store_id'],
@@ -124,9 +128,47 @@ if (!$esClienteNoInscrito && $totalInicial < 225) {
 
     // 2) Si ES combo, explotarlo en sus componentes
     if ($combo) {
-        $componentes = DB::table('catalog_combo_items')
-            ->where('combo_id', $combo->id)
-            ->get();
+        $componentesRaw = DB::table('catalog_combo_items')
+    ->where('combo_id', $combo->id)
+    ->get();
+
+/*
+    Quitamos productos repetidos dentro del mismo combo.
+    Si viene:
+    4-0
+    4-0
+
+    Lo deja solo una vez:
+    4-0
+*/
+$componentes = $componentesRaw
+    ->groupBy(function ($comp) {
+        $codigo = trim((string) $comp->product_code);
+        $color  = trim((string) ($comp->product_color ?? '0'));
+
+        if ($color === '') {
+            $color = '0';
+        }
+
+        return $codigo . '|' . $color;
+    })
+    ->map(function ($grupo) {
+        $comp = $grupo->first();
+
+        // NO sumamos, porque tu problema es que viene repetido.
+        $cantidad = $grupo->max(function ($row) {
+            return (int) ($row->quantity ?? 1);
+        });
+
+        if ($cantidad <= 0) {
+            $cantidad = 1;
+        }
+
+        $comp->quantity = $cantidad;
+
+        return $comp;
+    })
+    ->values();
 
         if ($componentes->isEmpty()) {
             return response()->json([
@@ -154,75 +196,40 @@ $total += $subtotalCombo;
 
 
 
-       foreach ($componentes as $comp) {
+      foreach ($componentes as $comp) {
     $compCode  = trim((string) $comp->product_code);
-    $compColor = trim((string) ($comp->product_color ?? ''));
-   $mes  = $mesCatalogo;
-$tipo = $tipoCatalogo;
+    $compColor = trim((string) ($comp->product_color ?? '0'));
 
-    // 1) Buscar con tipo
-    $queryComp = DB::connection('admin_ml')
-        ->table('inventario as i')
-        ->whereRaw('TRIM(i.Codprod) = ?', [$compCode])
-        ->whereRaw('TRIM(i.mesyope) = ?', [$mes]);
-
-    if ($compColor !== '') {
-        $queryComp->whereRaw('TRIM(i.color) = ?', [$compColor]);
+    if ($compColor === '') {
+        $compColor = '0';
     }
 
-    if ($tipo !== '') {
-        $queryComp->whereRaw('TRIM(i.tipocatalogo) = ?', [$tipo]);
-    }
-
-    $productoComp = $queryComp->select([
-        'i.Codprod as code',
-        'i.color as color',
-        'i.Descripcion as name',
-        'i.Precventa as price',
-    ])->first();
-
-    // 2) Si no encuentra, buscar sin tipocatalogo
-    if (!$productoComp) {
-        $queryComp2 = DB::connection('admin_ml')
-            ->table('inventario as i')
-            ->whereRaw('TRIM(i.Codprod) = ?', [$compCode])
-            ->whereRaw('TRIM(i.mesyope) = ?', [$mes]);
-
-        if ($compColor !== '') {
-            $queryComp2->whereRaw('TRIM(i.color) = ?', [$compColor]);
-        }
-
-        $productoComp = $queryComp2->select([
-            'i.Codprod as code',
-            'i.color as color',
-            'i.Descripcion as name',
-            'i.Precventa as price',
-        ])->first();
-    }
-
-    if (!$productoComp) {
-        return response()->json([
-            'message' => "No se encontró el producto interno {$compCode} con color {$compColor} del combo {$code}-{$color}."
-        ], 422);
-    }
- $comboPrice = (float) $combo->price;
- $comboSubtotal = $comboPrice * $qty;
+    $comboPrice = (float) ($combo->price ?? 0);
+    $comboSubtotal = $comboPrice * $qty;
 
     PedidoItem::create([
-    'pedidos_id'         => $pedido->id,
-    'product_code'       => $productoComp->code,
-    'product_color'      => $productoComp->color,
-    'product_name'       => $productoComp->name,
-    'quantity'           => ((int) $comp->quantity) * $qty,
-    'price'         => $comboPrice,
-    'subtotal'      => $comboSubtotal,
-    'is_combo_component' => true,
-    'combo_code'         => $code,
-    'combo_color'        => $color,
-    'combo_name'         => $comboName,
-    'combo_group'        => $comboGroup,
+        'pedidos_id'         => $pedido->id,
+        'product_code'       => $compCode,
+        'product_color'      => $compColor,
+        'product_name'       => $comp->product_name
+            ?? $comp->name
+            ?? ('Producto ' . $compCode . '-' . $compColor),
+
+        'quantity'           => ((int) $comp->quantity) * $qty,
+
+        'price'              => $comboPrice,
+        'subtotal'           => $comboSubtotal,
+
+        'is_combo_component' => true,
+        'combo_code'         => $code,
+        'combo_color'        => $color,
+        'combo_name'         => $comboName,
+        'combo_group'        => $comboGroup,
+
+        'created_at'         => now(),
+        'updated_at'         => now(),
     ]);
- }
+}
         continue;
     }
 
@@ -295,13 +302,22 @@ if ($esClienteNoInscrito) {
         'premio' => null,
     ];
 }
- else {
-    $totalParaPremio = in_array($data['pago_metodo'], $metodosContadoActual, true)
-        ? $total
-        : 0;
-
-    $premioInfo = $this->evaluarPremioDisponible($pedido->CodCliente, $totalParaPremio);
+else {
+    $premioInfo = [
+        'mostrar_acumulado' => false,
+        'cliente_no_inscrito' => false,
+        'aplica' => false,
+        'ya_entregado' => false,
+        'total_acumulado' => 0,
+        'total_pedido_actual' => $total,
+        'total_proyectado' => $total,
+        'faltante_c1' => 0,
+        'faltante_c2' => 0,
+        'mensaje' => 'Pedido creado correctamente. La tienda validará el acumulado del cliente.',
+        'premio' => null,
+    ];
 }
+
 if ($data['pago_metodo'] === 'neopay') {
     return response()->json([
         'ok' => true,
@@ -353,10 +369,12 @@ return response()->json([
                 'file' => $e->getFile(),
             ], 500);
         }
+      
     }
 
    private function evaluarPremioDisponible(string $codCliente, float $totalPedidoActual = 0): array
  {
+    
     $mesope = now()->format('m/Y');
 
     $inicioMes = now()->copy()->startOfMonth();
@@ -398,9 +416,11 @@ return response()->json([
             'premio' => null,
         ];
     }
+$admin = DB::connection('admin_ml');
 
+    try {
     // 4. Buscar premio usando el total proyectado
-    $premio = DB::connection('admin_ml')
+    $premio = $admin
         ->table('masterpremios')
         ->whereRaw('TRIM(MESOPE) = ?', [$mesope])
         ->whereRaw('TRIM(MESENTREGA) = ?', [$mesope])
@@ -410,6 +430,10 @@ return response()->json([
         ->whereRaw("TRIM(fuera_caja) = 'N'")
         ->orderByDesc('VALORMIN')
         ->first();
+
+         } finally {
+        DB::disconnect('admin_ml');
+    }
 
     if (!$premio) {
         return [
@@ -448,4 +472,5 @@ return response()->json([
     ];
  }
 
- }
+ 
+}

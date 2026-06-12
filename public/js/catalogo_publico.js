@@ -1,5 +1,12 @@
 const CART_KEY = 'flipbook_cart_v1';
 
+
+function getCsrfToken() {
+  const metaToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+  const inputToken = document.querySelector('input[name="_token"]')?.value;
+
+  return metaToken || inputToken || '';
+}
 /* ==========================
    🛒 CARRITO
 ========================== */
@@ -108,6 +115,13 @@ function toggleCart(){
   }
 
   panel.classList.toggle('d-none');
+
+  if (panel.classList.contains('d-none')) {
+    document.body.classList.remove('cart-open');
+  } else {
+    document.body.classList.add('cart-open');
+  }
+
   console.log('panel clases:', panel.className);
 }
 
@@ -128,15 +142,54 @@ function createPageChunkLoader(root, options = {}) {
   const blockSize = options.blockSize || 6;
   const threshold = options.threshold || 3;
 
+  const requestedOffsets = new Set();
+
+function getPageKey(page) {
+  if (!page) return '';
+
+  // Esta es la clave correcta.
+  // Permite página 38 parte 1 y página 38 parte 2.
+  if (page.dataset.renderKey) {
+    return String(page.dataset.renderKey).trim();
+  }
+
+  // Fallback
+  if (page.dataset.pageId && page.dataset.pageNumber) {
+    return 'page-' + page.dataset.pageId + '-' + page.dataset.pageNumber;
+  }
+
+  if (page.dataset.pageNumber) {
+    return 'num-' + String(page.dataset.pageNumber).trim();
+  }
+
+  const badge = page.querySelector('.page-badge');
+  if (badge) {
+    return badge.textContent.trim();
+  }
+
+  return page.outerHTML.slice(0, 150);
+}
+  function getLoadedRealPages() {
+    return root.querySelectorAll('.page').length;
+  }
+
   async function loadNextBlock(pageFlip) {
     if (loading) return;
 
     const slug = root.dataset.slug;
-    const loaded = parseInt(root.dataset.loaded || '0', 10);
     const total = parseInt(root.dataset.total || '0', 10);
+
+    // Usar páginas reales del DOM, no solo dataset.loaded
+    const loaded = getLoadedRealPages();
 
     if (loaded >= total) return;
 
+    if (requestedOffsets.has(loaded)) {
+      console.log('Offset ya solicitado, no se repite:', loaded);
+      return;
+    }
+
+    requestedOffsets.add(loaded);
     loading = true;
 
     try {
@@ -147,35 +200,62 @@ function createPageChunkLoader(root, options = {}) {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
       const data = await res.json();
-      console.log('DATA:', data);
-      if (!data.html || data.count <= 0) return;
+      console.log('DATA BLOQUE:', data);
+
+      if (!data.html || Number(data.count || 0) <= 0) return;
 
       const currentIndex = pageFlip.getCurrentPageIndex();
 
       const temp = document.createElement('div');
       temp.innerHTML = data.html;
 
-      [...temp.children].forEach(el => root.appendChild(el));
+      const existingKeys = new Set(
+        Array.from(root.querySelectorAll('.page')).map(getPageKey)
+      );
 
-      root.dataset.loaded = String(loaded + data.count);
+      const nuevasPaginas = Array.from(temp.querySelectorAll('.page'));
 
-      const newThumbs = [...temp.querySelectorAll('.product-thumb')].slice(0, 12);
+      let agregadas = 0;
+
+      nuevasPaginas.forEach(page => {
+        const key = getPageKey(page);
+
+        if (existingKeys.has(key)) {
+          console.warn('Página repetida ignorada:', key);
+          return;
+        }
+
+        existingKeys.add(key);
+        root.appendChild(page);
+        agregadas++;
+      });
+
+      // Actualiza loaded con el total real del DOM
+      root.dataset.loaded = String(getLoadedRealPages());
+
+      if (agregadas <= 0) {
+        console.warn('El bloque vino repetido. No se agregó ninguna página.');
+        return;
+      }
+
+      const newThumbs = Array.from(root.querySelectorAll('.product-thumb')).slice(-12);
       newThumbs.forEach(img => {
         const preload = new Image();
-        preload.src = img.src;
+        preload.src = img.src || img.dataset.src || '';
       });
 
       pageFlip.updateFromHtml(root.querySelectorAll('.page'));
       pageFlip.turnToPage(currentIndex);
 
       const indicator = document.getElementById('page-indicator');
-if (indicator) {
-  indicator.textContent = (pageFlip.getCurrentPageIndex() + 1) + ' / ' + (root.dataset.loaded || '0');
-}
+      if (indicator) {
+        indicator.textContent = (pageFlip.getCurrentPageIndex() + 1) + ' / ' + (root.dataset.loaded || '0');
+      }
 
-   lockFlipOnOverlay(root, '.products-overlay');
-bindZoomPreload(root);
-bindProductZoom(root);
+      lockFlipOnOverlay(root, '.products-overlay');
+      bindZoomPreload(root);
+      bindProductZoom(root);
+
     } catch (e) {
       console.error('Error cargando más páginas:', e);
     } finally {
@@ -184,9 +264,11 @@ bindProductZoom(root);
   }
 
   function check(pageFlip) {
-    const loaded = parseInt(root.dataset.loaded || '0', 10);
+    const loaded = getLoadedRealPages();
     const total = parseInt(root.dataset.total || '0', 10);
     const current = pageFlip.getCurrentPageIndex() + 1;
+
+    root.dataset.loaded = String(loaded);
 
     if (loaded >= total) return;
 
@@ -207,10 +289,10 @@ bindProductZoom(root);
 function lockFlipOnOverlay(root, selector) {
   root.querySelectorAll(selector).forEach((el) => {
     const stopMouse = (e) => e.stopPropagation();
-    const stopTouchMove = (e) => {
-      e.stopPropagation();
-      if (e.cancelable) e.preventDefault();
-    };
+
+   const stopTouchMove = (e) => {
+  e.stopPropagation();
+};
 
     el.addEventListener('mousedown', stopMouse, { capture: true });
     el.addEventListener('mousemove', stopMouse, { capture: true });
@@ -280,21 +362,58 @@ function bindProductZoom(root) {
     });
   });
 }
-
 (function () {
   const fab = document.getElementById('cartFab');
   if (!fab) return;
 
   let isDragging = false;
   let moved = false;
-  let startX = 0;
-  let startY = 0;
-  let initialLeft = 0;
-  let initialTop = 0;
+let startX = 0;
+let startY = 0;
+let initialLeft = 0;
+let initialTop = 0;
 
-  // posición inicial fija para poder moverlo libremente
+  function isMobile() {
+    return window.innerWidth <= 600;
+  }
+
+  function fixMobilePosition() {
+    if (!isMobile()) return;
+
+    const rect = fab.getBoundingClientRect();
+    const maxLeft = window.innerWidth - rect.width;
+    const margen = 14;
+
+    let left = rect.left;
+
+    if (!left || left < margen || left > maxLeft) {
+      left = maxLeft - margen;
+    }
+
+    left = Math.max(margen, Math.min(left, maxLeft - margen));
+
+    fab.style.position = 'fixed';
+    fab.style.left = left + 'px';
+    fab.style.right = 'auto';
+    fab.style.top = 'auto';
+   fab.style.bottom = '12px';
+  }
+
   function setInitialPosition() {
     const rect = fab.getBoundingClientRect();
+
+    if (isMobile()) {
+      const maxLeft = window.innerWidth - rect.width;
+      const margen = 14;
+
+      fab.style.position = 'fixed';
+      fab.style.left = Math.max(margen, maxLeft - margen) + 'px';
+      fab.style.right = 'auto';
+      fab.style.top = 'auto';
+      fab.style.bottom = '12px';
+      return;
+    }
+
     fab.style.left = rect.left + 'px';
     fab.style.top = rect.top + 'px';
     fab.style.right = 'auto';
@@ -302,86 +421,103 @@ function bindProductZoom(root) {
   }
 
   setTimeout(setInitialPosition, 100);
+fab.addEventListener('pointerdown', function (e) {
+  isDragging = true;
+  moved = false;
+  fab.classList.add('dragging');
 
-  fab.addEventListener('pointerdown', function (e) {
-    isDragging = true;
-    moved = false;
-    fab.classList.add('dragging');
+  const rect = fab.getBoundingClientRect();
 
-    const rect = fab.getBoundingClientRect();
-    startX = e.clientX;
-    startY = e.clientY;
-    initialLeft = rect.left;
-    initialTop = rect.top;
+  startX = e.clientX;
+  startY = e.clientY;
+  initialLeft = rect.left;
+  initialTop = rect.top;
 
-    fab.setPointerCapture(e.pointerId);
-  });
+  fab.setPointerCapture(e.pointerId);
+});
 
   fab.addEventListener('pointermove', function (e) {
     if (!isDragging) return;
 
     const dx = e.clientX - startX;
-    const dy = e.clientY - startY;
 
-    if (Math.abs(dx) > 4 || Math.abs(dy) > 4) {
+    if (Math.abs(dx) > 4) {
       moved = true;
     }
 
-    let newLeft = initialLeft + dx;
-    let newTop = initialTop + dy;
-
     const rect = fab.getBoundingClientRect();
     const maxLeft = window.innerWidth - rect.width;
-    const maxTop = window.innerHeight - rect.height;
+    const margen = 14;
 
-    newLeft = Math.max(0, Math.min(newLeft, maxLeft));
-    newTop = Math.max(0, Math.min(newTop, maxTop));
+    let newLeft = initialLeft + dx;
 
-    fab.style.left = newLeft + 'px';
-    fab.style.top = newTop + 'px';
-    fab.style.right = 'auto';
-    fab.style.bottom = 'auto';
+    if (isMobile()) {
+      // EN CELULAR SOLO SE MUEVE HORIZONTAL
+      newLeft = Math.max(margen, Math.min(newLeft, maxLeft - margen));
+
+      fab.style.position = 'fixed';
+      fab.style.left = newLeft + 'px';
+      fab.style.right = 'auto';
+      fab.style.top = 'auto';
+      fab.style.bottom = '12px';
+
+    } else {
+      // EN PC/TABLET SE MUEVE LIBRE
+      const dy = e.clientY - startY;
+      let newTop = initialTop + dy;
+      const maxTop = window.innerHeight - rect.height;
+
+      newLeft = Math.max(0, Math.min(newLeft, maxLeft));
+      newTop = Math.max(0, Math.min(newTop, maxTop));
+
+      fab.style.left = newLeft + 'px';
+      fab.style.top = newTop + 'px';
+      fab.style.right = 'auto';
+      fab.style.bottom = 'auto';
+    }
   });
 
   fab.addEventListener('pointerup', function (e) {
     isDragging = false;
     fab.classList.remove('dragging');
+
+    if (isMobile()) {
+      fixMobilePosition();
+    }
+
     fab.releasePointerCapture(e.pointerId);
   });
 
   fab.addEventListener('pointercancel', function () {
     isDragging = false;
     fab.classList.remove('dragging');
+
+    if (isMobile()) {
+      fixMobilePosition();
+    }
   });
 
-  // click normal abre carrito, arrastrar no
   fab.addEventListener('click', function (e) {
-  e.preventDefault();
-  e.stopPropagation();
+    e.preventDefault();
+    e.stopPropagation();
 
-  if (moved) {
-    moved = false;
-    return;
-  }
+    if (moved) {
+      moved = false;
+      return;
+    }
 
-  closeImgModal();
-  toggleCart();
-});
+    closeImgModal();
+    toggleCart();
+  });
 
-  window.addEventListener('resize', () => {
-    const rect = fab.getBoundingClientRect();
+ 
 
-    let left = rect.left;
-    let top = rect.top;
+  window.addEventListener('resize', function () {
+    fixMobilePosition();
+  });
 
-    const maxLeft = window.innerWidth - rect.width;
-    const maxTop = window.innerHeight - rect.height;
-
-    left = Math.max(0, Math.min(left, maxLeft));
-    top = Math.max(0, Math.min(top, maxTop));
-
-    fab.style.left = left + 'px';
-    fab.style.top = top + 'px';
+  window.addEventListener('orientationchange', function () {
+    setTimeout(fixMobilePosition, 200);
   });
 })();
 /* ==========================
@@ -613,9 +749,11 @@ if (!store_id) {
     return;
   }
 
+
   // cerrar carrito
-  const cartPanel = document.getElementById('cartPanel');
-  cartPanel?.classList.add('d-none');
+const cartPanel = document.getElementById('cartPanel');
+cartPanel?.classList.add('d-none');
+document.body.classList.remove('cart-open');
 
   // calcular total
   const total = getCart().reduce((sum, item) => {
@@ -849,7 +987,9 @@ if (!store_id) {
   });
   return;
 }
- const payload = {
+const payload = {
+    _token: getCsrfToken(),
+
     catalog_id: document.getElementById('catalog_id')?.value || '',
 
     CodCliente: document.getElementById('cliCodCliente')?.value.trim() || '',
@@ -876,7 +1016,6 @@ if (!store_id) {
         price: Number(item.price || 0)
     }))
 };
-
   const btnConfirm = document.getElementById('btnConfirm');
 
   if (btnConfirm) {
@@ -885,20 +1024,33 @@ if (!store_id) {
   }
 
   try {
-    const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+const token = getCsrfToken();
 
-    console.log('PAYLOAD PEDIDO:', payload);
+if (!token) {
+  await Swal.fire({
+    icon: 'error',
+    title: 'Error de seguridad',
+    text: 'No se encontró el token CSRF. Recarga la página e intenta nuevamente.',
+    confirmButtonColor: '#C2185B'
+  });
 
-    const res = await fetch('/pedido/finalizar', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-CSRF-TOKEN': token,
-        'Accept': 'application/json',
-        'X-Requested-With': 'XMLHttpRequest'
-      },
-      body: JSON.stringify(payload)
-    });
+  return;
+}
+
+console.log('CSRF TOKEN:', token);
+console.log('PAYLOAD PEDIDO:', payload);
+
+const res = await fetch('/pedido/finalizar', {
+  method: 'POST',
+  credentials: 'same-origin',
+  headers: {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
+    'X-Requested-With': 'XMLHttpRequest',
+    'X-CSRF-TOKEN': token
+  },
+  body: JSON.stringify(payload)
+});
 
     const data = await res.json();
 
@@ -920,14 +1072,15 @@ if (!store_id) {
   const modalInstance = bootstrap.Modal.getInstance(modalEl);
   modalInstance?.hide();
 
-  const pagoRes = await fetch(`/pedidos/${data.pedido_id}/neopay/iniciar`, {
+ const pagoRes = await fetch(`/pedidos/${data.pedido_id}/neopay/iniciar`, {
     method: 'POST',
+    credentials: 'same-origin',
     headers: {
       'Accept': 'application/json',
       'X-Requested-With': 'XMLHttpRequest',
       'X-CSRF-TOKEN': token
     }
-  });
+});
 
   const pagoData = await pagoRes.json();
 
@@ -972,7 +1125,7 @@ if (!store_id) {
 
  let premioHtml = '';
 
-if (data.premio) {
+if (data.premio && data.premio.mostrar_acumulado !== false) {
   const acumulado = Number(data.premio.total_acumulado || 0);
   const pedidoActual = Number(data.premio.total_pedido_actual || 0);
   const proyectado = Number(data.premio.total_proyectado || acumulado);
@@ -1172,15 +1325,8 @@ function closeImgModal(){
   });
 
 function isSingle() {
-  const vw = window.innerWidth;
-
-  // Solo teléfono real
-  return vw <= 600;
+  return window.innerWidth <= 600;
 }
- // function isSingle() {
-  //  return window.innerWidth <= 768;
- // }
-
 
 function getBaseSize() {
   const vw = window.innerWidth;
@@ -1192,17 +1338,31 @@ function getBaseSize() {
   }
 
   // TABLET VERTICAL
-  if (vw < vh && vw <= 900) {
-    return { width: 350, height: 500, portrait: true };
+  // Si el alto es mayor que el ancho, forzamos una sola página
+  if (vh > vw) {
+    return { width: 720, height: 1000, portrait: true };
   }
 
-  // TABLET HORIZONTAL / LAPTOP PEQUEÑA
-  if (vw <= 1200) {
-    return { width: 360, height: 500, portrait: false };
+  // TABLET HORIZONTAL
+  if (vw > vh && vw <= 1200) {
+    return { width: 470, height: 900, portrait: false };
   }
 
-  //  PC / LAPTOP
-  return { width: 800, height: 900, portrait: false }}
+  // PC / LAPTOP
+  return { width: 800, height: 900, portrait: false };
+}
+
+function shouldShowCover() {
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+
+  // En tablet horizontal no usar portada sola
+  if (vw > vh && vw <= 1200) {
+    return false;
+  }
+
+  return true;
+}
   //function getBaseSize() {
     //return isSingle()
     //  d? { width: 460, height: 590, portrait: true }
@@ -1219,7 +1379,7 @@ function getBaseSize() {
     maxWidth: base.width,
     minHeight: base.height,
     maxHeight: base.height,
-    showCover: true,
+showCover: shouldShowCover(),
     mobileScrollSupport: true,
     usePortrait: base.portrait,
     autoSize: false,
@@ -1290,13 +1450,100 @@ bindProductZoom(root);
     indicator.textContent = current + ' / ' + loaded;
   }
 
-  function updateFlipbook() {
+function updateFlipbook() {
+  base = getBaseSize();
+
+  const realWidth = base.portrait ? base.width : base.width * 2;
+
+  root.style.width = realWidth + 'px';
+  root.style.height = base.height + 'px';
+  root.style.transform = 'scale(1)';
+  root.style.transformOrigin = 'center center';
+
+  pageFlip.update({
+    width: base.width,
+    height: base.height,
+    size: 'fixed',
+    minWidth: base.width,
+    maxWidth: base.width,
+    minHeight: base.height,
+    maxHeight: base.height,
+    showCover: shouldShowCover(),
+    mobileScrollSupport: true,
+    usePortrait: base.portrait,
+    autoSize: false,
+    maxShadowOpacity: 0.35
+  });
+
+  setTimeout(() => {
+    try {
+      pageFlip.updateFromHtml(root.querySelectorAll('.page'));
+      lockFlipOnOverlay(root, '.products-overlay');
+      bindZoomPreload(root);
+      bindProductZoom(root);
+    } catch (e) {
+      console.warn('updateFromHtml:', e);
+    }
+  }, 50);
+}
+  function isFullscreenActive() {
+    return !!document.fullscreenElement || !!document.webkitFullscreenElement;
+  }
+
+function applyFullscreenScale() {
+  updatePageIndicator();
+
+  if (!isFullscreenActive()) return;
+
+  base = getBaseSize();
+
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+
+  const realWidth = base.portrait ? base.width : base.width * 2;
+  const realHeight = base.height;
+
+  root.style.width = realWidth + 'px';
+  root.style.height = realHeight + 'px';
+
+  const scaleX = vw / realWidth;
+  const scaleY = vh / realHeight;
+
+  // Mantiene la proporción real del catálogo
+  const scale = Math.min(scaleX, scaleY) * 0.98;
+
+  root.style.transform = `scale(${scale})`;
+  root.style.transformOrigin = 'center center';
+
+  console.log('FULL base:', base);
+  console.log('scale:', scale);
+}
+let lastFlipbookOrientation = window.innerHeight >= window.innerWidth
+  ? 'portrait'
+  : 'landscape';
+
+function getCurrentFlipbookOrientation() {
+  return window.innerHeight >= window.innerWidth
+    ? 'portrait'
+    : 'landscape';
+}
+
+function refreshFlipbookAfterRotate() {
+  clearTimeout(window.__flipbookRotateTimer);
+
+  // Oculta el catálogo mientras se recalcula para que no se vea deformado
+  root.style.opacity = '0';
+  root.style.transform = 'scale(1)';
+
+  window.__flipbookRotateTimer = setTimeout(() => {
+    const currentIndex = pageFlip.getCurrentPageIndex();
+
     base = getBaseSize();
 
-    root.style.width = base.width + 'px';
+    const realWidth = base.portrait ? base.width : base.width * 2;
+
+    root.style.width = realWidth + 'px';
     root.style.height = base.height + 'px';
-    root.style.transform = 'scale(1)';
-    root.style.transformOrigin = 'center center';
 
     pageFlip.update({
       width: base.width,
@@ -1306,7 +1553,7 @@ bindProductZoom(root);
       maxWidth: base.width,
       minHeight: base.height,
       maxHeight: base.height,
-      showCover: true,
+      showCover: shouldShowCover(),
       mobileScrollSupport: true,
       usePortrait: base.portrait,
       autoSize: false,
@@ -1314,95 +1561,33 @@ bindProductZoom(root);
     });
 
     setTimeout(() => {
-  try {
-    pageFlip.updateFromHtml(root.querySelectorAll('.page'));
-lockFlipOnOverlay(root, '.products-overlay');
-bindZoomPreload(root);
-bindProductZoom(root);
-  } catch (e) {
-    console.warn('updateFromHtml:', e);
-  }
-}, 50);
+      try {
+        pageFlip.updateFromHtml(root.querySelectorAll('.page'));
 
-    console.log('base:', base);
-console.log('flipbook width:', document.getElementById('flipbook').offsetWidth);
-  }
+        const totalPages = root.querySelectorAll('.page').length;
+        const safeIndex = Math.min(currentIndex, totalPages - 1);
 
-  function isFullscreenActive() {
-    return !!document.fullscreenElement || !!document.webkitFullscreenElement;
-  }
-
-  function applyFullscreenScale() {
-    //updateFlipbook();
-      updatePageIndicator();
-
-    if (!isFullscreenActive()) return;
-
-    const vw = window.innerWidth ;
-    const vh = window.innerHeight ;
-
-    const scaleX = vw / base.width;
-    const scaleY = vh / base.height;
-    const scale = Math.min(scaleX, scaleY) * 0.99;
-
-    root.style.transform = `scale(${scale})`;
-    root.style.transformOrigin = 'center center';
-  }
-
-  async function toggleFullscreen() {
-    try {
-      if (!isFullscreenActive()) {
-        if (wrap.requestFullscreen) {
-          await wrap.requestFullscreen();
-        } else if (wrap.webkitRequestFullscreen) {
-          await wrap.webkitRequestFullscreen();
-        }
-      } else {
-        if (document.exitFullscreen) {
-          await document.exitFullscreen();
-        } else if (document.webkitExitFullscreen) {
-          await document.webkitExitFullscreen();
-        }
+        pageFlip.turnToPage(safeIndex);
+      } catch (e) {
+        console.warn('updateFromHtml después de giro:', e);
       }
 
-      setTimeout(() => {
-        applyFullscreenScale();
-      }, 180);
-    } catch (e) {
-      console.warn('Error fullscreen:', e);
-    }
-  }
-
-  btn?.addEventListener('click', toggleFullscreen);
-  document.addEventListener('fullscreenchange', () => {
-    setTimeout(() => {
-      applyFullscreenScale();
-    }, 180);
-  });
-
-  document.addEventListener('webkitfullscreenchange', () => {
-    setTimeout(() => {
-      applyFullscreenScale();
-    }, 180);
-  });
-
-  window.addEventListener('resize', () => {
-    if (isFullscreenActive()) {
-      applyFullscreenScale();
-    } else {
-      updateFlipbook();
-    }
-  });
-
-  window.addEventListener('orientationchange', () => {
-    setTimeout(() => {
       if (isFullscreenActive()) {
         applyFullscreenScale();
-      } else {
-        updateFlipbook();
       }
-    }, 150);
-  });
+
+      updatePageIndicator();
+
+      root.style.opacity = '1';
+      lastFlipbookOrientation = getCurrentFlipbookOrientation();
+
+    }, 300);
+
+  }, 500);
+}
+
+window.addEventListener('resize', refreshFlipbookAfterRotate);
+window.addEventListener('orientationchange', refreshFlipbookAfterRotate);
 
 
   //boton expandir solo para tablet
@@ -1908,3 +2093,177 @@ data = JSON.parse(rawStock);
         tooltip.classList.remove('visible');
     });
 })();
+
+function updateSafeBottom() {
+  if (!window.visualViewport) {
+    document.documentElement.style.setProperty('--safe-bottom', '0px');
+    return;
+  }
+
+  const bottomSpace = window.innerHeight - window.visualViewport.height - window.visualViewport.offsetTop;
+
+  document.documentElement.style.setProperty(
+    '--safe-bottom',
+    Math.max(0, bottomSpace) + 'px'
+  );
+}
+
+window.visualViewport?.addEventListener('resize', updateSafeBottom);
+window.visualViewport?.addEventListener('scroll', updateSafeBottom);
+window.addEventListener('resize', updateSafeBottom);
+window.addEventListener('orientationchange', updateSafeBottom);
+document.addEventListener('DOMContentLoaded', updateSafeBottom);
+
+updateSafeBottom();
+
+
+function moverFlotantesSegunFullscreen() {
+  const wrap = document.getElementById('flipbook-wrap');
+  const cartFab = document.getElementById('cartFab');
+  const cartPanel = document.getElementById('cartPanel');
+  const imgModal = document.getElementById('imgModal');
+  const floatingButtons = document.querySelector('.floating-buttons');
+
+  const fullscreenActivo =
+    document.fullscreenElement ||
+    document.webkitFullscreenElement;
+
+  // Si está en pantalla completa, los botones/modal deben estar dentro del wrap
+  if (fullscreenActivo && wrap) {
+    if (cartFab && cartFab.parentElement !== wrap) {
+      wrap.appendChild(cartFab);
+    }
+
+    if (cartPanel && cartPanel.parentElement !== wrap) {
+      wrap.appendChild(cartPanel);
+    }
+
+    if (imgModal && imgModal.parentElement !== wrap) {
+      wrap.appendChild(imgModal);
+    }
+
+    if (floatingButtons && floatingButtons.parentElement !== wrap) {
+      wrap.appendChild(floatingButtons);
+    }
+
+    return;
+  }
+
+  // Si NO está en pantalla completa, los botones/modal deben estar en body
+  if (cartFab && cartFab.parentElement !== document.body) {
+    document.body.appendChild(cartFab);
+  }
+
+  if (cartPanel && cartPanel.parentElement !== document.body) {
+    document.body.appendChild(cartPanel);
+  }
+
+  if (imgModal && imgModal.parentElement !== document.body) {
+    document.body.appendChild(imgModal);
+  }
+
+
+}
+
+document.addEventListener('fullscreenchange', moverFlotantesSegunFullscreen);
+document.addEventListener('webkitfullscreenchange', moverFlotantesSegunFullscreen);
+document.addEventListener('DOMContentLoaded', moverFlotantesSegunFullscreen);
+moverFlotantesSegunFullscreen();
+
+
+document.addEventListener('DOMContentLoaded', function () {
+
+  const storeSelect = document.getElementById('store_id');
+  const flipbookWrap = document.getElementById('flipbook-wrap');
+
+  function actualizarOrientacionCatalogo() {
+    const esVertical = window.innerHeight >= window.innerWidth;
+
+    document.body.classList.toggle('fs-portrait', esVertical);
+    document.body.classList.toggle('fs-landscape', !esVertical);
+  }
+
+  async function abrirCatalogoAlSeleccionarTienda() {
+    if (!storeSelect || !flipbookWrap) {
+      console.log('No existe store_id o flipbook-wrap');
+      return;
+    }
+
+    if (!storeSelect.value) {
+      console.log('No hay tienda seleccionada');
+      return;
+    }
+
+    console.log('Tienda seleccionada, abriendo catálogo...');
+
+    actualizarOrientacionCatalogo();
+
+    // Este modo funciona aunque el navegador no permita fullscreen real
+    document.body.classList.add('tablet-catalog-fullscreen');
+
+    try {
+      if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+        if (flipbookWrap.requestFullscreen) {
+          await flipbookWrap.requestFullscreen();
+        } else if (flipbookWrap.webkitRequestFullscreen) {
+          await flipbookWrap.webkitRequestFullscreen();
+        }
+      }
+    } catch (e) {
+      console.log('Fullscreen nativo bloqueado, usando modo CSS:', e);
+    }
+
+    setTimeout(() => {
+      actualizarOrientacionCatalogo();
+      window.dispatchEvent(new Event('resize'));
+    }, 300);
+
+    setTimeout(() => {
+      actualizarOrientacionCatalogo();
+      window.dispatchEvent(new Event('resize'));
+    }, 800);
+  }
+
+  storeSelect?.addEventListener('change', abrirCatalogoAlSeleccionarTienda);
+
+  window.addEventListener('resize', actualizarOrientacionCatalogo);
+  window.addEventListener('orientationchange', function () {
+    setTimeout(() => {
+      actualizarOrientacionCatalogo();
+      window.dispatchEvent(new Event('resize'));
+    }, 400);
+  });
+
+  document.addEventListener('fullscreenchange', function () {
+    actualizarOrientacionCatalogo();
+
+    if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+      document.body.classList.remove('tablet-catalog-fullscreen', 'fs-portrait', 'fs-landscape');
+    }
+  });
+
+  document.addEventListener('webkitfullscreenchange', function () {
+    actualizarOrientacionCatalogo();
+
+    if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+      document.body.classList.remove('tablet-catalog-fullscreen', 'fs-portrait', 'fs-landscape');
+    }
+  });
+});
+
+document.addEventListener('DOMContentLoaded', function () {
+    const fsPrev = document.getElementById('fsPrev');
+    const fsNext = document.getElementById('fsNext');
+
+    const prevBtn = document.getElementById('prev');
+    const nextBtn = document.getElementById('next');
+
+    fsPrev?.addEventListener('click', function () {
+        prevBtn?.click();
+    });
+
+    fsNext?.addEventListener('click', function () {
+        nextBtn?.click();
+    });
+});
+

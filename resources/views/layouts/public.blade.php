@@ -59,7 +59,7 @@
     manager: @json($catalog->store_manager ?? ''),
     whatsapp: @json($catalog->whatsapp_number ?? '50237553802')
   }; </script>
-    <script src="{{ asset('js/catalogo_publico.js') }}?v=13"></script>
+    <script src="{{ asset('js/catalogo_publico.js') }}?v=14"></script>
 
     <!-- ONBOARDING / TOUR GUIADO -->
 <script src="https://cdn.jsdelivr.net/npm/driver.js@1.3.6/dist/driver.js.iife.js"></script>

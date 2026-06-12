@@ -12,6 +12,7 @@ use App\Http\Controllers\AdminStoreController;
 use App\Http\Controllers\ClientePublicController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\PagoNeoPayController;
+use App\Http\Controllers\Admin\PremioContadoController;
 
 /*
 |--------------------------------------------------------------------------
@@ -201,8 +202,24 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
     Route::post('/pedidos/{pedido}/enviar-admin-ml', [PedidoController::class, 'enviarAdminMl'])
         ->name('pedidos.enviarAdminMl');
 
-        Route::patch('/pedidos/{pedido}/validar-pago', [PedidoController::class, 'validarPago'])
-    ->name('pedidos.validarPago');
+    Route::patch('/pedidos/{pedido}/validar-pago', [PedidoController::class, 'validarPago'])
+        ->name('pedidos.validarPago');
+
+
+    Route::get('/premios', [PremioContadoController::class, 'index'])->name('premios.index');
+
+    Route::get('/premios/create', [PremioContadoController::class, 'create'])->name('premios.create');
+
+    Route::post('/premios', [PremioContadoController::class, 'store'])->name('premios.store');
+
+Route::get('/premios/{codigo}/edit', [PremioContadoController::class, 'edit'])
+    ->name('premios.edit');
+
+Route::put('/premios/{codigo}', [PremioContadoController::class, 'update'])
+    ->name('premios.update');
+
+Route::delete('/premios/{codigo}', [PremioContadoController::class, 'destroy'])
+    ->name('premios.destroy');
 });
 
 

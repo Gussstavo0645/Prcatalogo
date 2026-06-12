@@ -8,10 +8,13 @@ use Throwable;
 
 class AdminMlCatalogoBridgeService
 {
-    public function enviarPedido(Pedido $pedido): int
-    {
+   public function enviarPedido(Pedido $pedido): int
+{
+    $admin = DB::connection('admin_ml');
+
+    try {
         // Si ya fue enviado, no lo duplicamos
-        $existente = DB::connection('admin_ml')
+        $existente = $admin
             ->table('web_catalogo_pedidos')
             ->where('pedido_local_id', $pedido->id)
             ->first();
@@ -29,8 +32,7 @@ class AdminMlCatalogoBridgeService
             return $existente->id;
         }
 
-        try {
-            $webPedidoId = DB::connection('admin_ml')->transaction(function () use ($pedido) {
+        $webPedidoId = $admin->transaction(function () use ($pedido, $admin) {
 
                 $store = null;
 
@@ -43,7 +45,7 @@ class AdminMlCatalogoBridgeService
                 [$mesope, $tipocatalogo] = $this->obtenerMesYTipoCatalogo($pedido);
 
                 // 1. Insertar encabezado del pedido en admin_ml
-                $webPedidoId = DB::connection('admin_ml')
+                $webPedidoId = $admin
                     ->table('web_catalogo_pedidos')
                     ->insertGetId([
                         'pedido_local_id' => $pedido->id,
@@ -115,19 +117,21 @@ foreach ($combosAgrupados as $comboGroup => $componentes) {
     $comboSubtotal = $comboCantidad * $comboPrice;
 
     // Insertar línea visible del combo en admin_ml
-    $webItemId = DB::connection('admin_ml')
+    $webItemId = $admin
         ->table('web_catalogo_pedido_items')
         ->insertGetId([
             'web_pedido_id' => $webPedidoId,
             'pedido_item_local_id' => null,
 
-            'product_code' => $comboCode,
-            'product_color' => $comboColor,
-            'product_name' => $comboName,
+            'codigo_int' => $comboCode,
+            'color_int' => $comboColor,
+            'nombre_producto' => $comboName,
 
-            'quantity' => $comboCantidad,
+            'cantidad' => $comboCantidad,
             'precio' => $comboPrice,
             'subtotal' => $comboSubtotal,
+            'neto' => 'N',
+            'Premio' => 'N',
 
             'is_combo' => 1,
             'line_order' => $lineOrder++,
@@ -136,34 +140,47 @@ foreach ($combosAgrupados as $comboGroup => $componentes) {
             'updated_at' => now(),
         ]);
 
-    // Insertar componentes internos del combo
-    foreach ($componentes as $comp) {
-        $cantidadTotal = (float) ($comp->quantity ?? 1);
+    // Insertar componentes internos del combo SIN DUPLICAR
+$componentesAgrupados = $componentes->groupBy(function ($comp) {
+    return trim((string) $comp->product_code) . '|' . $this->normalizarColor($comp->product_color ?? 0);
+});
 
-        $cantidadPorCombo = $comboCantidad > 0
-            ? $cantidadTotal / $comboCantidad
-            : $cantidadTotal;
+foreach ($componentesAgrupados as $grupoComp) {
 
-        DB::connection('admin_ml')
-            ->table('web_catalogo_pedido_componentes')
-            ->insert([
-                'web_pedido_id' => $webPedidoId,
-                'web_item_id' => $webItemId,
+    $comp = $grupoComp->first();
 
-                'combo_code' => $comboCode,
-                'combo_color' => $comboColor,
-                'combo_name' => $comboName,
+    $codigoComponente = trim((string) $comp->product_code);
+    $colorComponente = $this->normalizarColor($comp->product_color ?? 0);
 
-                'component_code' => trim((string) $comp->product_code),
-                'component_color' => $this->normalizarColor($comp->product_color ?? 0),
-                'component_name' => $comp->product_name ?? null,
+    // Suma las cantidades de las líneas repetidas del mismo componente
+    $cantidadTotal = $grupoComp->sum(function ($row) {
+        return (float) ($row->quantity ?? 1);
+    });
 
-                'cantidad_por_combo' => $cantidadPorCombo,
-                ' cantidad_total' => $cantidadTotal,
+    $cantidadPorCombo = $comboCantidad > 0
+        ? $cantidadTotal / $comboCantidad
+        : $cantidadTotal;
 
-                'created_at' => now(),
-            ]);
-    }
+    $admin
+        ->table('web_catalogo_pedido_componentes')
+        ->insert([
+            'web_pedido_id' => $webPedidoId,
+            'web_item_id' => $webItemId,
+
+            'codigo_matriz' => $comboCode,
+            'color_matriz' => $comboColor,
+            'nombre_combo' => $comboName,
+
+            'codigo_int' => $codigoComponente,
+            'color_int' => $colorComponente,
+            'component_name' => $comp->product_name ?? null,
+
+            'cantidad_por_combo' => $cantidadPorCombo,
+            'cantidad_total' => $cantidadTotal,
+
+            'created_at' => now(),
+        ]);
+}
 }
 
 // 4. Luego procesamos productos normales
@@ -173,23 +190,23 @@ $productosNormales = $todosItems
     });
 
 foreach ($productosNormales as $item) {
-    DB::connection('admin_ml')
+    $admin      
         ->table('web_catalogo_pedido_items')
         ->insert([
             'web_pedido_id' => $webPedidoId,
             'pedido_item_local_id' => $item->id,
 
-            'product_code' => trim((string) $item->product_code),
-            'product_color' => $this->normalizarColor($item->product_color ?? 0),
-            'product_name' => $item->product_name ?? null,
+            'codigo_int' => trim((string) $item->product_code),
+            'color_int' => $this->normalizarColor($item->product_color ?? 0),
+            'nombre_producto' => $item->product_name ?? null,
 
-            'quantity' => $item->quantity ?? 1,
-            'price' => $item->price ?? 0,
+            'cantidad' => $item->quantity ?? 1,
+            'precio' => $item->price ?? 0,
+            'neto' => 'N',
+            'Premio' => 'N',
             'subtotal' => $item->subtotal ?? (($item->quantity ?? 1) * ($item->price ?? 0)),
-
             'is_combo' => 0,
             'line_order' => $lineOrder++,
-
             'created_at' => now(),
             'updated_at' => now(),
         ]);
@@ -220,7 +237,9 @@ return $webPedidoId;
                 ]);
 
             throw $e;
-        }
+       } finally {
+    DB::disconnect('admin_ml');
+}
     }
 
     private function attr($model, array $names, $default = null)

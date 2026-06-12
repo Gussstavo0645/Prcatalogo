@@ -40,6 +40,10 @@
         Catálogos
     </a>
 
+    <a href="{{ route('admin.premios.index') }}" class="nav-link-custom">
+    Premios
+</a>
+
     <a href="{{ route('admin.pedidos.index') }}" class="nav-link-custom">
         Pedidos
     </a>
