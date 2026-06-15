@@ -17,39 +17,126 @@ class CatalogoController extends Controller
 {
     /*LISTA CATALOGOS
     */
-   public function index()
+public function index()
 {
-    
     $catalogos = Catalogo::where('is_public', 1)
         ->orderByDesc('id')
         ->get();
 
-    // Tomamos el mes del catálogo más reciente
-    $mesPremios = optional($catalogos->first())->mesyope ?? now()->format('m/Y');
-    $mesPremios = trim((string) $mesPremios);
+    $catalogoBase = $catalogos->first();
+
+    // Mes y tipo base del catálogo más reciente
+    $mesPremios = trim((string) ($catalogoBase->mesyope ?? now()->format('m/Y')));
+    $mesCatalogo = trim((string) ($catalogoBase->mesyope ?? $mesPremios));
+    $tipoCatalogo = trim((string) ($catalogoBase->tipocatalogo ?? 'N'));
+
+    if ($mesCatalogo === '') {
+        $mesCatalogo = $mesPremios;
+    }
+
+    if ($tipoCatalogo === '') {
+        $tipoCatalogo = 'N';
+    }
+
+    $premiosBase = collect();
+    $masVendidos = collect();
 
     $admin = DB::connection('admin_ml');
-    try{
 
-    // Premios base desde admin_ml.masterpremios
-    $premiosBase = $admin
-        ->table('masterpremios as mp')
-        ->select(
-            'mp.CODOFERTA as codigo_premio',       // 961 / 962
-            'mp.DESCRIP_PREMIO as descripcion_rango',
-            'mp.MESOPE',
-            'mp.CODTPRODUCTO as rango_premio',     // C1 / C2
-            'mp.VALORMIN',
-            'mp.VALORMAX'
-        )
-        ->whereRaw('TRIM(mp.MESOPE) = ?', [$mesPremios])
-        ->whereIn(DB::raw('TRIM(mp.CODTPRODUCTO)'), ['C1', 'C2'])
-        ->orderBy('mp.VALORMIN')
-        ->get();
- } finally {
+    try {
+        // PREMIOS AL CONTADO
+        $premiosBase = $admin
+            ->table('masterpremios as mp')
+            ->select(
+                'mp.CODOFERTA as codigo_premio',
+                'mp.DESCRIP_PREMIO as descripcion_rango',
+                'mp.MESOPE',
+                'mp.CODTPRODUCTO as rango_premio',
+                'mp.VALORMIN',
+                'mp.VALORMAX'
+            )
+            ->whereRaw('TRIM(mp.MESOPE) = ?', [$mesPremios])
+            ->whereIn(DB::raw('TRIM(mp.CODTPRODUCTO)'), ['C1', 'C2'])
+            ->orderBy('mp.VALORMIN')
+            ->get();
+
+
+
+
+
+            // TODO: MÁS VENDIDOS REALES
+// Actualmente este slider muestra productos del inventario para probar el diseño.
+// Pendiente: cambiar esta consulta para tomar los productos realmente más vendidos
+// desde las tablas de pedidos:
+// - web_catalogo_pedido_items
+// - web_catalogo_pedidos
+//
+// La idea será agrupar por código/color y ordenar por la cantidad total vendida:
+//
+// SELECT code, color, SUM(quantity) AS total_vendido
+// FROM web_catalogo_pedido_items
+// GROUP BY code, color
+// ORDER BY total_vendido DESC
+//
+// Luego cruzar esos códigos contra admin_ml.inventario para traer:
+// - nombre
+// - precio
+// - imagen
+//
+// Cuando ya haya suficientes pedidos reales, reemplazar esta consulta temporal.
+
+        // PRODUCTOS MÁS VENDIDOS PARA EL SLIDER
+        $masVendidos = $admin->table('inventario as i')
+            ->select(
+                DB::raw('TRIM(i.Codprod) as code'),
+                DB::raw('TRIM(i.color) as color'),
+                'i.Descripcion as name',
+                'i.Precventa as price'
+            )
+            ->whereRaw('TRIM(i.mesyope) = ?', [$mesCatalogo])
+            ->whereRaw('TRIM(i.tipocatalogo) = ?', [$tipoCatalogo])
+            ->whereRaw("TRIM(i.Descripcion) <> ''")
+            ->where('i.Precventa', '>', 0)
+            ->orderBy('i.pagina')
+            ->limit(12)
+            ->get();
+
+    } finally {
         $this->cerrarAdmin();
     }
-    // Fotos subidas desde tu admin en la BD catalogo
+
+
+    // ==============================
+    // CALIFICACIONES REALES DE PRODUCTOS
+    // BD local: catalogo.product_reviews
+    // ==============================
+    $ratings = DB::table('product_reviews')
+        ->select(
+            'code',
+            'color',
+            DB::raw('ROUND(AVG(rating), 1) as avg_rating'),
+            DB::raw('COUNT(*) as total_reviews')
+        )
+        ->where('approved', 1)
+        ->groupBy('code', 'color')
+        ->get()
+        ->keyBy(function ($item) {
+            return trim((string) $item->code) . '-' . trim((string) $item->color);
+        });
+
+    $masVendidos = $masVendidos->map(function ($prod) use ($ratings) {
+        $code = trim((string) ($prod->code ?? ''));
+        $color = trim((string) ($prod->color ?? ''));
+
+        $key = $code . '-' . $color;
+
+        $prod->avg_rating = (float) ($ratings[$key]->avg_rating ?? 0);
+        $prod->total_reviews = (int) ($ratings[$key]->total_reviews ?? 0);
+
+        return $prod;
+    });
+
+    // Fotos subidas desde tu admin en la BD local
     $fotosPremios = DB::table('premios_publicos')
         ->where('mesope', $mesPremios)
         ->where('activo', 1)
@@ -67,9 +154,21 @@ class CatalogoController extends Controller
         return $premio;
     });
 
-    return view('catalogo.index', compact('catalogos', 'premiosContado'));
-    
+    return view('catalogo.index', compact(
+        'catalogos',
+        'premiosContado',
+        'masVendidos'
+    ));
 }
+
+
+
+
+
+
+
+
+
 
     /*VER CATALOGO
     */
@@ -399,7 +498,9 @@ class CatalogoController extends Controller
         $mes = trim((string) ($catalog->mesyope ?? ''));
         $tipo = trim((string) ($catalog->tipocatalogo ?? ''));
 
-        $cacheKey = "public_pages_render_catalog_{$catalog->id}_{$catalog->updated_at->timestamp}";
+        $ratingsVersion = DB::table('product_reviews')->max('updated_at') ?? 'no-reviews';
+
+$cacheKey = "public_pages_render_catalog_{$catalog->id}_{$catalog->updated_at->timestamp}_ratings_" . md5((string) $ratingsVersion);
 
 $pagesRender = Cache::remember($cacheKey, 300, function () use ($catalog) {
     return $this->buildPublicPagesRender($catalog);
@@ -614,6 +715,20 @@ $pagesRender = Cache::remember($cacheKey, 300, function () use ($catalog) {
         ->orderByRaw('COALESCE(cp.position, 999999)')
         ->get();
 
+        $ratings = DB::table('product_reviews')
+    ->select(
+        'code',
+        'color',
+        DB::raw('ROUND(AVG(rating), 1) as avg_rating'),
+        DB::raw('COUNT(*) as total_reviews')
+    )
+    ->where('approved', 1)
+    ->groupBy('code', 'color')
+    ->get()
+    ->keyBy(function ($row) {
+        return trim((string) $row->code) . '|' . trim((string) ($row->color ?? ''));
+    });
+
     // ==============================
     // 2. PREPARAR CÓDIGOS
     // ==============================
@@ -700,8 +815,7 @@ $pagesRender = Cache::remember($cacheKey, 300, function () use ($catalog) {
         return trim((string) $row->code) . '|' . trim((string) $row->color);
     });
 
-    $productos = $catalogItems->map(function ($item) use ($inventarioMap, $existenciasPorProducto) {
-        $codeOriginal = trim((string) ($item->code ?? ''));
+$productos = $catalogItems->map(function ($item) use ($inventarioMap, $existenciasPorProducto, $ratings) {        $codeOriginal = trim((string) ($item->code ?? ''));
         $colorOriginal = trim((string) ($item->color ?? ''));
 
         $lookupCode = $codeOriginal;
@@ -750,17 +864,37 @@ $pagesRender = Cache::remember($cacheKey, 300, function () use ($catalog) {
                 ->values();
         }
 
-        return (object) [
-            'code' => $lookupCode,
-            'color' => $lookupColor,
-            'display_code' => $lookupCode . ($lookupColor !== '' ? '-' . $lookupColor : ''),
-            'name' => $name !== '' ? $name : 'Producto sin descripción',
-            'price' => $price,
-            'quantity' => (int) ($item->quantity ?? 1),
-            'page_number' => (int) ($item->page_number ?? 1),
-            'position' => (int) ($item->position ?? 1),
-            'existencias' => $existencias ?: collect(),
-        ];
+        $ratingKey = $lookupCode . '|' . $lookupColor;
+
+$rating = $ratings->get($ratingKey);
+
+if (!$rating && $lookupColor === '0') {
+    $rating = $ratings->get($lookupCode . '|');
+}
+
+if (!$rating && $lookupColor === '') {
+    $rating = $ratings->get($lookupCode . '|0');
+}
+
+       return (object) [
+    'code' => $lookupCode,
+    'color' => $lookupColor,
+    'display_code' => $lookupCode . ($lookupColor !== '' ? '-' . $lookupColor : ''),
+    'name' => $name !== '' ? $name : 'Producto sin descripción',
+    'price' => $price,
+    'quantity' => (int) ($item->quantity ?? 1),
+    'page_number' => (int) ($item->page_number ?? 1),
+    'position' => (int) ($item->position ?? 1),
+    'existencias' => $existencias ?: collect(),
+
+    'avg_rating' => $rating
+        ? (float) $rating->avg_rating
+        : 0,
+
+    'total_reviews' => $rating
+        ? (int) $rating->total_reviews
+        : 0,
+];
     });
 
     // ==============================
@@ -768,11 +902,16 @@ $pagesRender = Cache::remember($cacheKey, 300, function () use ($catalog) {
     // ==============================
     $combos = CatalogCombo::where('catalog_id', $catalog->id)
         ->get()
-        ->map(function ($combo) {
+        ->map(function ($combo) use ($ratings) {
+            $comboCode = trim((string) $combo->code);
+            $comboColor = trim((string) $combo->color);
+
+            $comboRating = $ratings->get($comboCode . '|' . $comboColor);
+
             return (object) [
-                'code' => trim((string) $combo->code),
-                'color' => trim((string) $combo->color),
-                'display_code' => trim((string) $combo->code) . (trim((string) $combo->color) !== '' ? '-' . trim((string) $combo->color) : ''),
+                'code' => $comboCode,
+                'color' => $comboColor,
+                'display_code' => $comboCode . ($comboColor !== '' ? '-' . $comboColor : ''),
                 'name' => $combo->name ?: 'Combo sin descripción',
                 'price' => (float) ($combo->price ?? 0),
                 'quantity' => 1,
@@ -781,6 +920,14 @@ $pagesRender = Cache::remember($cacheKey, 300, function () use ($catalog) {
                 'is_combo' => true,
                 'image_path' => $combo->image_path,
                 'existencias' => collect(),
+
+                'avg_rating' => $comboRating
+                    ? (float) $comboRating->avg_rating
+                    : 0,
+
+                'total_reviews' => $comboRating
+                    ? (int) $comboRating->total_reviews
+                    : 0,
             ];
         });
 
@@ -832,38 +979,37 @@ $pagesRender = Cache::remember($cacheKey, 300, function () use ($catalog) {
     return $pagesRender;
 }
 
+public function pagesBlock(Request $request, $slug)
+{
+    $catalog = Catalogo::where('slug', $slug)
+        ->where('is_public', true)
+        ->firstOrFail();
 
+    $offset = max(0, (int) $request->get('offset', 0));
+    $limit = max(1, min(12, (int) $request->get('limit', 6)));
 
-    public function pagesBlock(Request $request, $slug)
-    {
-        $catalog = Catalogo::where('slug', $slug)
-            ->where('is_public', true)
-            ->firstOrFail();
+    $ratingsVersion = DB::table('product_reviews')->max('updated_at') ?? 'no-reviews';
 
-        $offset = max(0, (int) $request->get('offset', 0));
-        $limit = max(1, min(12, (int) $request->get('limit', 6)));
+    $cacheKey = "public_pages_render_catalog_{$catalog->id}_{$catalog->updated_at->timestamp}_ratings_" . md5((string) $ratingsVersion);
 
-        $cacheKey = "public_pages_render_catalog_{$catalog->id}_{$catalog->updated_at->timestamp}";
+    $pagesRender = Cache::remember($cacheKey, 300, function () use ($catalog) {
+        return $this->buildPublicPagesRender($catalog);
+    });
 
-$pagesRender = Cache::remember($cacheKey, 300, function () use ($catalog) {
-    return $this->buildPublicPagesRender($catalog);
-});
+    $slice = collect($pagesRender)->slice($offset, $limit)->values();
 
-        $slice = collect($pagesRender)->slice($offset, $limit)->values();
-
-        $html = '';
-        foreach ($slice as $renderPage) {
-            $html .= view('catalogo.parcial.pagina', compact('renderPage'))->render();
-        }
-
-        return response()->json([
-            'html' => $html,
-            'count' => $slice->count(),
-            'next_offset' => $offset + $slice->count(),
-            'has_more' => ($offset + $slice->count()) < collect($pagesRender)->count(),
-        ]);
+    $html = '';
+    foreach ($slice as $renderPage) {
+        $html .= view('catalogo.parcial.pagina', compact('renderPage'))->render();
     }
 
+    return response()->json([
+        'html' => $html,
+        'count' => $slice->count(),
+        'next_offset' => $offset + $slice->count(),
+        'has_more' => ($offset + $slice->count()) < collect($pagesRender)->count(),
+    ]);
+}
    private function cerrarAdmin(): void
 {
     DB::disconnect('admin_ml');

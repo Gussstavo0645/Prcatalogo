@@ -7,6 +7,61 @@ function getCsrfToken() {
 
   return metaToken || inputToken || '';
 }
+
+function esTelefono() {
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+
+  const shortest = Math.min(vw, vh);
+  const longest = Math.max(vw, vh);
+
+  return shortest < 600 && longest <= 950;
+}
+
+function esTablet() {
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+
+  const shortest = Math.min(vw, vh);
+  const longest = Math.max(vw, vh);
+
+  return (
+    shortest >= 600 ||
+    (shortest >= 540 && longest > 950)
+  );
+}
+
+async function salirFullscreenSiActivo() {
+  try {
+    if (document.fullscreenElement && document.exitFullscreen) {
+      await document.exitFullscreen();
+    } else if (document.webkitFullscreenElement && document.webkitExitFullscreen) {
+      document.webkitExitFullscreen();
+    }
+  } catch (e) {
+    console.log('No se pudo salir de fullscreen nativo:', e);
+  }
+
+    sessionStorage.removeItem('catalog_keep_fullscreen');
+  sessionStorage.removeItem('catalog_restore_fullscreen');
+
+  // También quitar pantalla completa por CSS
+  document.body.classList.remove(
+    'tablet-catalog-fullscreen',
+    'fs-portrait',
+    'fs-landscape'
+  );
+
+  const flipbook = document.getElementById('flipbook');
+  if (flipbook) {
+    flipbook.style.transform = 'scale(1)';
+    flipbook.style.opacity = '1';
+  }
+
+  setTimeout(() => {
+    window.forzarAjusteFlipbook?.();
+  }, 200);
+}
 /* ==========================
    🛒 CARRITO
 ========================== */
@@ -21,9 +76,16 @@ function getCart(){
 function setCart(items){
   localStorage.setItem(CART_KEY, JSON.stringify(items));
 
-
   renderCart();
   updateCartBadge();
+
+  const panel = document.getElementById('cartPanel');
+
+  if (panel && !panel.classList.contains('d-none')) {
+    setTimeout(() => {
+      positionCartPanelNearFab();
+    }, 10);
+  }
 }
 
 function updateCartBadge(){
@@ -70,6 +132,16 @@ function addToCart(product){
   showCartFab();
 }
 
+function escHtml(value) {
+  const div = document.createElement('div');
+  div.textContent = value ?? '';
+  return div.innerHTML;
+}
+
+function money(value) {
+  return 'Q ' + Number(value || 0).toFixed(2);
+}
+
 function renderCart(){
   const cart = getCart();
   const wrap = document.getElementById('cartItems');
@@ -78,7 +150,14 @@ function renderCart(){
   if (!wrap) return;
 
   if (!cart.length){
-    wrap.innerHTML = '<p class="text-muted mb-0">Tu carrito está vacío.</p>';
+    wrap.innerHTML = `
+      <div class="cart-empty">
+        <div class="cart-empty-icon">🛒</div>
+        <strong>Tu carrito está vacío</strong>
+        <span>Agrega productos del catálogo para iniciar tu pedido.</span>
+      </div>
+    `;
+
     if (totalEl) totalEl.textContent = 'Q 0.00';
     return;
   }
@@ -86,24 +165,125 @@ function renderCart(){
   let total = 0;
 
   wrap.innerHTML = cart.map((item, i) => {
-    const subtotal = item.price * item.qty;
+    const price = Number(item.price || 0);
+    const qty = Number(item.qty || 1);
+    const subtotal = price * qty;
+
     total += subtotal;
 
     return `
-      <div class="cart-item">
-        <img src="${item.img}" alt="${item.name}">
-        <div class="meta">
-          <div class="name">${item.name}</div>
-          <div class="sub">${item.code} | ${item.color}</div>
-          <div class="sub">Q ${item.price} x ${item.qty}</div>
+      <div class="cart-product-card">
+        <img 
+          class="cart-product-img"
+          src="${escHtml(item.img || '')}" 
+          alt="${escHtml(item.name || 'Producto')}"
+        >
+
+        <div class="cart-product-info">
+          <div class="cart-product-name">
+            ${escHtml(item.name || 'Producto')}
+          </div>
+
+          <div class="cart-product-code">
+            Código: ${escHtml(item.code || '')}
+            ${item.color ? ` | Color: ${escHtml(item.color)}` : ''}
+          </div>
+
+          <div class="cart-product-price">
+            <span>${money(price)} c/u</span>
+            <strong>${money(subtotal)}</strong>
+          </div>
+
+          <div class="cart-qty-row">
+            <button type="button" class="cart-qty-btn" onclick="changeQty(${i}, -1)">−</button>
+            <span class="cart-qty-number">${qty}</span>
+            <button type="button" class="cart-qty-btn" onclick="changeQty(${i}, 1)">+</button>
+          </div>
         </div>
-        <button type="button" onclick="removeCartItem(${i})">X</button>
-    
+
+        <button 
+          type="button" 
+          class="cart-remove-btn" 
+          onclick="removeCartItem(${i})"
+          title="Quitar producto"
+        >
+          ×
+        </button>
       </div>
     `;
   }).join('');
 
-  if (totalEl) totalEl.textContent = 'Q ' + total.toFixed(2);
+  if (totalEl) totalEl.textContent = money(total);
+}
+function positionCartPanelNearFab() {
+  const panel = document.getElementById('cartPanel');
+  const fab = document.getElementById('cartFab');
+
+  if (!panel || !fab) return;
+
+  const margen = 12;
+  const fabRect = fab.getBoundingClientRect();
+
+  panel.style.visibility = 'hidden';
+  panel.classList.remove('d-none');
+
+  const panelRect = panel.getBoundingClientRect();
+
+  let left = fabRect.left;
+  let top = fabRect.top - panelRect.height - 12;
+
+  // Si no cabe arriba, se abre abajo de la burbuja
+  if (top < margen) {
+    top = fabRect.bottom + 12;
+  }
+
+  // Que no se salga a la derecha
+  if (left + panelRect.width > window.innerWidth - margen) {
+    left = window.innerWidth - panelRect.width - margen;
+  }
+
+  // Que no se salga a la izquierda
+  if (left < margen) {
+    left = margen;
+  }
+
+  // Que no se salga abajo
+  if (top + panelRect.height > window.innerHeight - margen) {
+    top = window.innerHeight - panelRect.height - margen;
+  }
+
+  panel.style.position = 'fixed';
+  panel.style.left = left + 'px';
+  panel.style.top = top + 'px';
+  panel.style.right = 'auto';
+  panel.style.bottom = 'auto';
+  panel.style.visibility = 'visible';
+}
+function openCart(){
+  const panel = document.getElementById('cartPanel');
+
+  if (!panel) {
+    console.error('No existe #cartPanel');
+    return;
+  }
+
+  renderCart();
+
+  panel.classList.remove('d-none');
+  document.body.classList.add('cart-open');
+
+  setTimeout(() => {
+    positionCartPanelNearFab();
+  }, 10);
+}
+
+function closeCart(){
+  const panel = document.getElementById('cartPanel');
+
+  if (!panel) return;
+
+  panel.classList.add('d-none');
+  document.body.classList.remove('cart-open');
 }
 
 function toggleCart(){
@@ -114,15 +294,11 @@ function toggleCart(){
     return;
   }
 
-  panel.classList.toggle('d-none');
-
   if (panel.classList.contains('d-none')) {
-    document.body.classList.remove('cart-open');
+    openCart();
   } else {
-    document.body.classList.add('cart-open');
+    closeCart();
   }
-
-  console.log('panel clases:', panel.className);
 }
 
 
@@ -477,16 +653,24 @@ fab.addEventListener('pointerdown', function (e) {
     }
   });
 
-  fab.addEventListener('pointerup', function (e) {
-    isDragging = false;
-    fab.classList.remove('dragging');
+ fab.addEventListener('pointerup', function (e) {
+  isDragging = false;
+  fab.classList.remove('dragging');
 
-    if (isMobile()) {
-      fixMobilePosition();
-    }
+  if (isMobile()) {
+    fixMobilePosition();
+  }
 
-    fab.releasePointerCapture(e.pointerId);
-  });
+  const panel = document.getElementById('cartPanel');
+
+  if (panel && !panel.classList.contains('d-none')) {
+    setTimeout(() => {
+      positionCartPanelNearFab();
+    }, 10);
+  }
+
+  fab.releasePointerCapture(e.pointerId);
+});
 
   fab.addEventListener('pointercancel', function () {
     isDragging = false;
@@ -789,18 +973,24 @@ if (btnBuscarClienteCheckout) {
 
 bloquearCamposCliente();
 
-  //  salir de fullscrren luego ed ir a pagar
-  if (document.fullscreenElement) {
-    await document.exitFullscreen();
-  }
 
-  // abrir el modal
-  const modal = new bootstrap.Modal(modalEl, {
-    backdrop: 'static',
-    keyboard: false
-  });
 
-  modal.show();
+// salir de pantalla completa antes de abrir el formulario de pedido
+await salirFullscreenSiActivo();
+
+if (!modalEl) {
+  console.error('No existe #checkoutModal');
+  alert('No se encontró el formulario de pedido.');
+  return;
+}
+
+// abrir el modal
+const modal = new bootstrap.Modal(modalEl, {
+  backdrop: 'static',
+  keyboard: false
+});
+
+modal.show();
 }
 let currentStep = 1;
 
@@ -1224,24 +1414,63 @@ if (data.premio && data.premio.mostrar_acumulado !== false) {
     const modalInstance = bootstrap.Modal.getInstance(modalEl);
     modalInstance?.hide();
 
-    await Swal.fire({
-      icon: 'success',
-      title: 'Pedido recibido',
+const reviewUrl = data.pedido_id 
+  ? `/pedido/${data.pedido_id}/calificar`
+  : null;
+
+await Swal.fire({
+  icon: 'success',
+  title: 'Pedido recibido',
+  html: `
+    <p>Tu pedido fue creado correctamente.</p>
+    <p>Ahora te llevaremos a WhatsApp para enviarlo.</p>
+    ${premioHtml}
+    ${reviewUrl ? `
+      <hr>
+      <div style="text-align:left">
+        <h5>⭐ Califica tus productos</h5>
+        <p style="margin-bottom:0">
+          Después de enviar el pedido por WhatsApp, podrás calificar los productos.
+        </p>
+      </div>
+    ` : ''}
+  `,
+  confirmButtonText: 'Continuar a WhatsApp',
+  confirmButtonColor: '#C2185B',
+  allowOutsideClick: false,
+  allowEscapeKey: false
+});
+
+clearCart();
+resetCheckoutForm();
+showStep(1);
+
+const numeroEmpresa = (store.whatsapp || '50237553802').replace(/\D/g, '');
+const waUrl = `https://wa.me/${numeroEmpresa}?text=${encodeURIComponent(mensaje)}`;
+
+window.open(waUrl, '_blank');
+
+if (reviewUrl) {
+  setTimeout(async () => {
+    const resultReview = await Swal.fire({
+      icon: 'question',
+      title: '¿Quieres calificar tus productos?',
       html: `
-        <p>Ahora te llevaremos a WhatsApp para enviarlo.</p>
-        ${premioHtml}
+        <p>Ya abrimos WhatsApp para enviar tu pedido.</p>
+        <p>También puedes calificar los productos que compraste.</p>
       `,
-      confirmButtonText: 'Continuar',
-      confirmButtonColor: '#C2185B'
+      showCancelButton: true,
+      confirmButtonText: 'Calificar ahora',
+      cancelButtonText: 'Después',
+      confirmButtonColor: '#6d3cff',
+      cancelButtonColor: '#6c757d'
     });
 
-    clearCart();
-    resetCheckoutForm();
-    showStep(1);
-
-    const numeroEmpresa = (store.whatsapp || '50237553802').replace(/\D/g, '');
-    const waUrl = `https://wa.me/${numeroEmpresa}?text=${encodeURIComponent(mensaje)}`;
-    window.open(waUrl, '_blank');
+    if (resultReview.isConfirmed) {
+      window.open(reviewUrl, '_blank');
+    }
+  }, 800);
+}
 
   } catch (error) {
     console.error('Error enviando pedido:', error);
@@ -1333,17 +1562,16 @@ function getBaseSize() {
   const vh = window.innerHeight;
 
   // MÓVIL
-  if (isSingle()) {
+  if (esTelefono()) {
     return { width: 350, height: 500, portrait: true };
   }
 
-  // TABLET VERTICAL
-  // Si el alto es mayor que el ancho, forzamos una sola página
+  // TABLET VERTICAL: una página
   if (vh > vw) {
     return { width: 720, height: 1000, portrait: true };
   }
 
-  // TABLET HORIZONTAL
+  // TABLET HORIZONTAL: dos páginas tipo libro
   if (vw > vh && vw <= 1200) {
     return { width: 470, height: 900, portrait: false };
   }
@@ -1406,6 +1634,33 @@ if (nextBtn) {
     pageFlip.flipNext();
   });
 }
+const fsPrevBtn = document.getElementById('fsPrev');
+const fsNextBtn = document.getElementById('fsNext');
+
+function bindFlipButton(button, action) {
+  if (!button) return;
+
+  button.addEventListener('pointerdown', function (e) {
+    e.preventDefault();
+    e.stopPropagation();
+  }, { passive: false });
+
+  button.addEventListener('click', function (e) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (action === 'prev') {
+      pageFlip.flipPrev();
+    }
+
+    if (action === 'next') {
+      pageFlip.flipNext();
+    }
+  });
+}
+
+bindFlipButton(fsPrevBtn, 'prev');
+bindFlipButton(fsNextBtn, 'next');
 
 window.pageFlip = pageFlip;
 function cargarThumbsCercanas() {
@@ -1486,14 +1741,20 @@ function updateFlipbook() {
     }
   }, 50);
 }
-  function isFullscreenActive() {
-    return !!document.fullscreenElement || !!document.webkitFullscreenElement;
-  }
+ function isFullscreenActive() {
+  return (
+    !!document.fullscreenElement ||
+    !!document.webkitFullscreenElement ||
+    document.body.classList.contains('tablet-catalog-fullscreen')
+  );
+}
 
 function applyFullscreenScale() {
   updatePageIndicator();
 
-  if (!isFullscreenActive()) return;
+  const fullscreenCssActivo = document.body.classList.contains('tablet-catalog-fullscreen');
+
+  if (!isFullscreenActive() && !fullscreenCssActivo) return;
 
   base = getBaseSize();
 
@@ -1518,6 +1779,21 @@ function applyFullscreenScale() {
   console.log('FULL base:', base);
   console.log('scale:', scale);
 }
+
+window.forzarAjusteFlipbook = function () {
+  try {
+    updateFlipbook();
+
+    setTimeout(() => {
+      applyFullscreenScale();
+      updatePageIndicator();
+      root.style.opacity = '1';
+    }, 200);
+
+  } catch (e) {
+    console.warn('No se pudo forzar ajuste del flipbook:', e);
+  }
+};
 let lastFlipbookOrientation = window.innerHeight >= window.innerWidth
   ? 'portrait'
   : 'landscape';
@@ -1529,9 +1805,17 @@ function getCurrentFlipbookOrientation() {
 }
 
 function refreshFlipbookAfterRotate() {
+  const orientacionActual = getCurrentFlipbookOrientation();
+
+  // Evita que el scroll del teléfono oculte el catálogo
+  if (orientacionActual === lastFlipbookOrientation && !isFullscreenActive()) {
+    root.style.opacity = '1';
+    return;
+  }
+
   clearTimeout(window.__flipbookRotateTimer);
 
-  // Oculta el catálogo mientras se recalcula para que no se vea deformado
+  // Oculta solo cuando realmente gira la pantalla
   root.style.opacity = '0';
   root.style.transform = 'scale(1)';
 
@@ -1586,30 +1870,62 @@ function refreshFlipbookAfterRotate() {
   }, 500);
 }
 
-window.addEventListener('resize', refreshFlipbookAfterRotate);
-window.addEventListener('orientationchange', refreshFlipbookAfterRotate);
+
+window.addEventListener('resize', function () {
+  const orientacionActual = getCurrentFlipbookOrientation();
+
+  // Si solo fue scroll en teléfono, NO recalcular catálogo
+  if (orientacionActual === lastFlipbookOrientation && !isFullscreenActive()) {
+    root.style.opacity = '1';
+    return;
+  }
+
+  refreshFlipbookAfterRotate();
+});
+
+window.addEventListener('orientationchange', function () {
+  clearTimeout(window.__catalogOrientationReloadTimer);
+
+  window.__catalogOrientationReloadTimer = setTimeout(() => {
+    if (!esTablet()) return;
+
+    const storeSelect = document.getElementById('store_id');
+
+    const estabaAmpliado =
+      sessionStorage.getItem('catalog_keep_fullscreen') === '1' ||
+      document.body.classList.contains('tablet-catalog-fullscreen') ||
+      document.fullscreenElement ||
+      document.webkitFullscreenElement;
+
+    if (storeSelect && storeSelect.value) {
+      sessionStorage.setItem('catalog_store_selected', storeSelect.value);
+    }
+
+    if (estabaAmpliado) {
+      sessionStorage.setItem('catalog_restore_fullscreen', '1');
+    } else {
+      sessionStorage.removeItem('catalog_restore_fullscreen');
+    }
+
+    window.location.reload();
+  }, 500);
+});
 
 
   //boton expandir solo para tablet
   updateFlipbook();
 
-  function isTablet() {
-  const vw = window.innerWidth;
-  const vh = window.innerHeight;
-  const shortest = Math.min(vw, vh);
-
-  return shortest > 600 && shortest <= 900;
-}
+ 
 
 function updateFullscreenButton() {
   const btn = document.getElementById('btnFullscreen');
   if (!btn) return;
 
-  if (isTablet()) {
-    btn.style.display = 'block';
-  } else {
-    btn.style.display = 'none';
-  }
+  if (esTablet()) {
+  btn.style.display = 'block';
+} else {
+  btn.style.display = 'none';
+}
 }
 
 updateFullscreenButton();
@@ -1623,43 +1939,176 @@ window.addEventListener('orientationchange', updateFullscreenButton);
 })();
 
 //ZZOOOOOMMM AL PRODUCTO
-function openImgModal(img) {
-  console.log('zoom sí entró');
+/* ==========================
+   🔍 MODAL PRODUCTO QUICK VIEW
+========================== */
 
+let quickProduct = null;
+let quickQty = 1;
+
+function formatQuickMoney(value) {
+  return 'Q ' + Number(value || 0).toFixed(2);
+}
+
+function closeImgModal() {
+  const modal = document.getElementById('imgModal');
+  const img = document.getElementById('imgModalSrc');
+
+  modal?.classList.remove('active');
+
+  if (img) img.src = '';
+
+  quickProduct = null;
+  quickQty = 1;
+
+  const quickQtyValue = document.getElementById('quickQtyValue');
+  if (quickQtyValue) quickQtyValue.textContent = '1';
+}
+
+function openImgModal(img) {
   const modal = document.getElementById('imgModal');
   const modalImg = document.getElementById('imgModalSrc');
+
+  const quickCode = document.getElementById('quickCode');
+  const quickName = document.getElementById('quickName');
+  const quickPrice = document.getElementById('quickPrice');
+  const quickQtyValue = document.getElementById('quickQtyValue');
+  const quickRating = document.getElementById('quickRating');
 
   if (!modal || !modalImg || !img) {
     console.warn('Falta modal, modalImg o img');
     return;
   }
 
-  const thumbSrc = img.src;
-  const largeSrc = img.dataset.large || thumbSrc;
+  quickQty = 1;
 
-  const cachedImg = preloadZoomImage(largeSrc);
+  const card = img.closest('.product-mini');
 
-  // Si la imagen grande ya está cargada, la muestra de una vez
-  if (cachedImg && cachedImg.complete && cachedImg.naturalWidth > 0) {
-    modalImg.src = largeSrc;
-    modal.classList.add('active');
-    return;
+  let payload = {};
+
+  try {
+    payload = JSON.parse(card?.dataset.cart || '{}');
+  } catch (e) {
+    console.warn('No se pudo leer data-cart:', e);
+    payload = {};
   }
 
-  // Si todavía no termina de cargar, abre con miniatura y la cambia enseguida
-  modalImg.src = thumbSrc;
-  modal.classList.add('active');
+  const largeSrc = img.dataset.img || img.dataset.large || img.src;
 
-  if (cachedImg) {
-    cachedImg.onload = function () {
-      modalImg.src = largeSrc;
-    };
+ quickProduct = {
+    ...payload,
+    id: payload.id || `${img.dataset.code || ''}-${img.dataset.color || ''}`,
+    code: payload.code || img.dataset.code || '',
+    color: payload.color || img.dataset.color || '',
+    name: payload.name || img.dataset.name || '',
+    price: Number(payload.price || img.dataset.price || 0),
+    img: largeSrc,
+    qty: 1,
 
-    cachedImg.onerror = function () {
-      modalImg.src = thumbSrc;
-    };
+    rating: Number(
+        payload.rating ||
+        payload.avg_rating ||
+        img.dataset.rating ||
+        0
+    ),
+
+    reviews: Number(
+        payload.reviews ||
+        payload.total_reviews ||
+        img.dataset.reviews ||
+        0
+    )
+};
+
+  modalImg.src = largeSrc;
+
+  if (quickCode) {
+const displayCode = img.dataset.displayCode || quickProduct.code || '';
+
+quickCode.textContent = displayCode
+  ? `Código: ${displayCode}`
+  : 'Producto';
   }
+
+  if (quickName) {
+    quickName.textContent = quickProduct.name || 'Producto';
+  }
+
+  if (quickPrice) {
+    quickPrice.textContent = formatQuickMoney(quickProduct.price);
+  }
+
+  if (quickRating) {
+    quickRating.innerHTML = renderProductRating(
+        quickProduct.rating,
+        quickProduct.reviews
+    );
 }
+
+  if (quickQtyValue) {
+    quickQtyValue.textContent = quickQty;
+  }
+
+  modal.classList.add('active');
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+  const imgModal = document.getElementById('imgModal');
+  const imgModalClose = document.getElementById('imgModalClose');
+
+  const quickQtyMinus = document.getElementById('quickQtyMinus');
+  const quickQtyPlus = document.getElementById('quickQtyPlus');
+  const quickQtyValue = document.getElementById('quickQtyValue');
+  const quickAddBtn = document.getElementById('quickAddBtn');
+
+  imgModalClose?.addEventListener('click', closeImgModal);
+
+  imgModal?.addEventListener('click', function (e) {
+    if (e.target === imgModal) {
+      closeImgModal();
+    }
+  });
+
+  quickQtyMinus?.addEventListener('click', function (e) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (quickQty > 1) {
+      quickQty--;
+      if (quickQtyValue) quickQtyValue.textContent = quickQty;
+    }
+  });
+
+  quickQtyPlus?.addEventListener('click', function (e) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    quickQty++;
+    if (quickQtyValue) quickQtyValue.textContent = quickQty;
+  });
+
+  quickAddBtn?.addEventListener('click', function (e) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (!quickProduct) return;
+
+    quickProduct.qty = quickQty;
+
+    if (typeof addToCart === 'function') {
+      addToCart(quickProduct);
+    } else {
+      console.error('No existe addToCart');
+      return;
+    }
+
+    closeImgModal();
+
+    if (typeof openCart === 'function') {
+      openCart();
+    }
+  });
+});
 
 document.getElementById('imgModal')?.addEventListener('click', function (e) {
   if (e.target.id === 'imgModal') {
@@ -2170,13 +2619,24 @@ document.addEventListener('webkitfullscreenchange', moverFlotantesSegunFullscree
 document.addEventListener('DOMContentLoaded', moverFlotantesSegunFullscreen);
 moverFlotantesSegunFullscreen();
 
-
 document.addEventListener('DOMContentLoaded', function () {
 
   const storeSelect = document.getElementById('store_id');
   const flipbookWrap = document.getElementById('flipbook-wrap');
 
+
+
   function actualizarOrientacionCatalogo() {
+    // EN TELÉFONO NO APLICAR CLASES DE FULLSCREEN
+    if (esTelefono()) {
+      document.body.classList.remove(
+        'tablet-catalog-fullscreen',
+        'fs-portrait',
+        'fs-landscape'
+      );
+      return;
+    }
+
     const esVertical = window.innerHeight >= window.innerWidth;
 
     document.body.classList.toggle('fs-portrait', esVertical);
@@ -2193,13 +2653,123 @@ document.addEventListener('DOMContentLoaded', function () {
       console.log('No hay tienda seleccionada');
       return;
     }
+if (esTelefono()) {
+  console.log('Teléfono: no se abre pantalla completa al seleccionar tienda');
 
-    console.log('Tienda seleccionada, abriendo catálogo...');
+  document.body.classList.remove(
+    'tablet-catalog-fullscreen',
+    'fs-portrait',
+    'fs-landscape'
+  );
+
+await salirFullscreenSiActivo();
+
+  return;
+}
+if (!esTablet()) {
+  console.log('No es tablet: no se abre pantalla completa al seleccionar tienda');
+  return;
+}
+ 
+    console.log('Tienda seleccionada, abriendo catálogo en tablet...');
 
     actualizarOrientacionCatalogo();
 
-    // Este modo funciona aunque el navegador no permita fullscreen real
+    // SOLO TABLET / PANTALLA GRANDE
     document.body.classList.add('tablet-catalog-fullscreen');
+    
+
+    try {
+      if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+        if (flipbookWrap.requestFullscreen) {
+          await flipbookWrap.requestFullscreen();
+        } else if (flipbookWrap.webkitRequestFullscreen) {
+          await flipbookWrap.webkitRequestFullscreen();
+        }
+      }
+    } catch (e) {
+      console.log('Fullscreen nativo bloqueado, usando modo CSS:', e);
+    }
+
+   setTimeout(() => {
+  actualizarOrientacionCatalogo();
+  window.forzarAjusteFlipbook?.();
+}, 300);
+
+setTimeout(() => {
+  actualizarOrientacionCatalogo();
+  window.forzarAjusteFlipbook?.();
+}, 800);
+  }
+
+  storeSelect?.addEventListener('change', abrirCatalogoAlSeleccionarTienda);
+
+  window.addEventListener('resize', actualizarOrientacionCatalogo);
+
+  window.addEventListener('orientationchange', function () {
+    setTimeout(() => {
+      actualizarOrientacionCatalogo();
+      window.dispatchEvent(new Event('resize'));
+    }, 400);
+  });
+
+  document.addEventListener('fullscreenchange', function () {
+    actualizarOrientacionCatalogo();
+
+    if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+      document.body.classList.remove(
+        'tablet-catalog-fullscreen',
+        'fs-portrait',
+        'fs-landscape'
+      );
+    }
+  });
+
+  document.addEventListener('webkitfullscreenchange', function () {
+    actualizarOrientacionCatalogo();
+
+    if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+      document.body.classList.remove(
+        'tablet-catalog-fullscreen',
+        'fs-portrait',
+        'fs-landscape'
+      );
+    }
+  });
+});
+
+document.addEventListener('DOMContentLoaded', function () {
+  const btnExitFullscreen = document.getElementById('btnExitFullscreen');
+
+  btnExitFullscreen?.addEventListener('click', async function (e) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    await salirFullscreenSiActivo();
+  });
+});
+
+document.addEventListener('DOMContentLoaded', function () {
+  const btnFullscreen = document.getElementById('btnFullscreen');
+  const flipbookWrap = document.getElementById('flipbook-wrap');
+
+  btnFullscreen?.addEventListener('click', async function (e) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (!flipbookWrap) return;
+
+    if (esTelefono()) {
+      console.log('Teléfono: no abrir fullscreen manual');
+      return;
+    }
+
+    const esVertical = window.innerHeight >= window.innerWidth;
+
+    document.body.classList.add('tablet-catalog-fullscreen');
+    sessionStorage.setItem('catalog_restore_fullscreen', '1');
+    document.body.classList.toggle('fs-portrait', esVertical);
+    document.body.classList.toggle('fs-landscape', !esVertical);
 
     try {
       if (!document.fullscreenElement && !document.webkitFullscreenElement) {
@@ -2214,56 +2784,259 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     setTimeout(() => {
-      actualizarOrientacionCatalogo();
-      window.dispatchEvent(new Event('resize'));
+      window.forzarAjusteFlipbook?.();
     }, 300);
 
     setTimeout(() => {
-      actualizarOrientacionCatalogo();
-      window.dispatchEvent(new Event('resize'));
+      window.forzarAjusteFlipbook?.();
     }, 800);
+  });
+});
+document.addEventListener('DOMContentLoaded', function () {
+  const storeSelect = document.getElementById('store_id');
+
+  const savedStore = sessionStorage.getItem('catalog_store_selected');
+  const restoreFullscreen =
+    sessionStorage.getItem('catalog_restore_fullscreen') === '1' ||
+    sessionStorage.getItem('catalog_keep_fullscreen') === '1';
+
+  if (storeSelect && savedStore) {
+    storeSelect.value = savedStore;
   }
 
-  storeSelect?.addEventListener('change', abrirCatalogoAlSeleccionarTienda);
+  if (restoreFullscreen && !esTelefono()) {
+    const esVertical = window.innerHeight >= window.innerWidth;
 
-  window.addEventListener('resize', actualizarOrientacionCatalogo);
-  window.addEventListener('orientationchange', function () {
-    setTimeout(() => {
-      actualizarOrientacionCatalogo();
-      window.dispatchEvent(new Event('resize'));
-    }, 400);
-  });
+    document.body.classList.add('tablet-catalog-fullscreen');
+    document.body.classList.toggle('fs-portrait', esVertical);
+    document.body.classList.toggle('fs-landscape', !esVertical);
 
-  document.addEventListener('fullscreenchange', function () {
-    actualizarOrientacionCatalogo();
+    sessionStorage.setItem('catalog_keep_fullscreen', '1');
+  }
 
-    if (!document.fullscreenElement && !document.webkitFullscreenElement) {
-      document.body.classList.remove('tablet-catalog-fullscreen', 'fs-portrait', 'fs-landscape');
-    }
-  });
+  setTimeout(() => {
+    window.forzarAjusteFlipbook?.();
+  }, 400);
 
-  document.addEventListener('webkitfullscreenchange', function () {
-    actualizarOrientacionCatalogo();
+  setTimeout(() => {
+    window.forzarAjusteFlipbook?.();
+  }, 900);
 
-    if (!document.fullscreenElement && !document.webkitFullscreenElement) {
-      document.body.classList.remove('tablet-catalog-fullscreen', 'fs-portrait', 'fs-landscape');
-    }
-  });
+  setTimeout(() => {
+    window.forzarAjusteFlipbook?.();
+  }, 1300);
 });
 
 document.addEventListener('DOMContentLoaded', function () {
-    const fsPrev = document.getElementById('fsPrev');
-    const fsNext = document.getElementById('fsNext');
+    const slider = document.querySelector('.best-sellers-wide');
+    const track = document.querySelector('[data-best-track]');
+    const prev = document.querySelector('[data-best-prev]');
+    const next = document.querySelector('[data-best-next]');
+    const dotsBox = document.querySelector('[data-best-dots]');
 
-    const prevBtn = document.getElementById('prev');
-    const nextBtn = document.getElementById('next');
+    if (!track) return;
 
-    fsPrev?.addEventListener('click', function () {
-        prevBtn?.click();
+    let autoplayTimer = null;
+    const autoplayDelay = 1600;
+
+    function getStep() {
+        const card = track.querySelector('.best-card');
+        if (!card) return 300;
+
+        const styles = window.getComputedStyle(track);
+        const gap = parseFloat(styles.columnGap || styles.gap) || 22;
+
+        return card.getBoundingClientRect().width + gap;
+    }
+
+    function hasOverflow() {
+        return track.scrollWidth > track.clientWidth + 5;
+    }
+
+    function scrollNext() {
+        if (!hasOverflow()) return;
+
+        const maxScroll = track.scrollWidth - track.clientWidth - 5;
+
+        if (track.scrollLeft >= maxScroll) {
+            track.scrollTo({
+                left: 0,
+                behavior: 'smooth'
+            });
+        } else {
+            track.scrollBy({
+                left: getStep(),
+                behavior: 'smooth'
+            });
+        }
+    }
+
+    function scrollPrev() {
+        if (!hasOverflow()) return;
+
+        if (track.scrollLeft <= 5) {
+            track.scrollTo({
+                left: track.scrollWidth,
+                behavior: 'smooth'
+            });
+        } else {
+            track.scrollBy({
+                left: -getStep(),
+                behavior: 'smooth'
+            });
+        }
+    }
+
+    function stopAutoplay() {
+        if (autoplayTimer) {
+            clearInterval(autoplayTimer);
+            autoplayTimer = null;
+        }
+    }
+
+    function startAutoplay() {
+        stopAutoplay();
+
+        if (!hasOverflow()) return;
+
+        autoplayTimer = setInterval(function () {
+            if (document.hidden) return;
+            scrollNext();
+        }, autoplayDelay);
+    }
+
+    function restartAutoplay() {
+        stopAutoplay();
+
+        setTimeout(function () {
+            startAutoplay();
+        }, 4500);
+    }
+
+    prev?.addEventListener('click', function () {
+        scrollPrev();
+        restartAutoplay();
     });
 
-    fsNext?.addEventListener('click', function () {
-        nextBtn?.click();
+    next?.addEventListener('click', function () {
+        scrollNext();
+        restartAutoplay();
     });
+
+    function buildDots() {
+        if (!dotsBox) return;
+
+        const totalPages = Math.max(1, Math.ceil(track.scrollWidth / track.clientWidth));
+        dotsBox.innerHTML = '';
+
+        for (let i = 0; i < totalPages; i++) {
+            const dot = document.createElement('button');
+
+            dot.addEventListener('click', function () {
+                track.scrollTo({
+                    left: i * track.clientWidth,
+                    behavior: 'smooth'
+                });
+
+                restartAutoplay();
+            });
+
+            dotsBox.appendChild(dot);
+        }
+
+        updateDots();
+    }
+
+    function updateDots() {
+        if (!dotsBox) return;
+
+        const dots = dotsBox.querySelectorAll('button');
+        const activeIndex = Math.round(track.scrollLeft / track.clientWidth);
+
+        dots.forEach((dot, index) => {
+            dot.classList.toggle('active', index === activeIndex);
+        });
+    }
+
+    track.addEventListener('scroll', updateDots);
+
+    window.addEventListener('resize', function () {
+        buildDots();
+        restartAutoplay();
+    });
+
+    slider?.addEventListener('mouseenter', stopAutoplay);
+    slider?.addEventListener('mouseleave', startAutoplay);
+
+    slider?.addEventListener('touchstart', stopAutoplay, { passive: true });
+    slider?.addEventListener('touchend', restartAutoplay, { passive: true });
+
+    buildDots();
+    startAutoplay();
 });
 
+function addBestSellerToCart(btn) {
+    const code = btn.dataset.code || '';
+    const color = btn.dataset.color || '';
+    const rating = Number(btn.dataset.rating || 0);
+const reviews = Number(btn.dataset.reviews || 0);
+    const id = color ? `${code}-${color}` : code;
+
+    const product = {
+        id: id,
+        code: code,
+        color: color,
+        name: btn.dataset.name || 'Producto',
+        price: Number(btn.dataset.price || 0),
+        img: btn.dataset.img || '',
+        qty: 1
+    };
+
+    if (typeof addToCart === 'function') {
+        addToCart(product);
+    } else {
+        console.error('No existe la función addToCart');
+        return;
+    }
+
+    const originalText = btn.dataset.originalText || btn.textContent;
+    btn.dataset.originalText = originalText;
+
+    btn.disabled = true;
+    btn.textContent = 'Agregado ✓';
+
+    setTimeout(() => {
+        btn.disabled = false;
+        btn.textContent = originalText;
+    }, 900);
+}
+
+
+function renderProductRating(rating, reviews) {
+    rating = Number(rating || 0);
+    reviews = Number(reviews || 0);
+
+    if (reviews <= 0 || rating <= 0) {
+        return `
+            <div class="product-rating-view">
+                <span class="rating-stars-view">☆☆☆☆☆</span>
+                <span class="rating-text">Sin calificaciones todavía</span>
+            </div>
+        `;
+    }
+
+    const filledStars = Math.round(rating);
+    let stars = '';
+
+    for (let i = 1; i <= 5; i++) {
+        stars += i <= filledStars ? '★' : '☆';
+    }
+
+    return `
+        <div class="product-rating-view">
+            <span class="rating-stars-view">${stars}</span>
+            <span class="rating-number">${rating.toFixed(1)} / 5</span>
+            <span class="rating-text">(${reviews} calificación${reviews === 1 ? '' : 'es'})</span>
+        </div>
+    `;
+}

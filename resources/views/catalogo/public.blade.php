@@ -134,6 +134,12 @@
         </div>
 
         <div id="flipbook-wrap" data-tour="catalogo">
+            <button id="btnExitFullscreen" type="button" class="btn-exit-fullscreen">
+  ✕
+</button>
+  <button id="btnFullscreen" class="fullscreen-btn">
+                ⛶
+            </button>
             <div id="flipbook"
      data-slug="{{ $catalog->slug }}"
      data-total="{{ $total }}"
@@ -154,9 +160,7 @@
                 @endif
 
             </div>
-            <button id="btnFullscreen" class="fullscreen-btn">
-                ⛶
-            </button>
+          
             <button type="button" id="fsPrev" class="fs-page-arrow fs-page-arrow-left">
     ‹
 </button>
@@ -213,12 +217,41 @@
             </div>
         </div>
 
-        <div id="imgModal">
-            <div class="img-modal-box">
-                <button type="button" class="img-close" id="imgModalClose">&times;</button>
-                <img id="imgModalSrc" alt="Zoom producto">
-            </div>
+       <div id="imgModal">
+    <div class="img-modal-box quick-view-box">
+
+        <button type="button" class="img-close" id="imgModalClose">&times;</button>
+
+        <div class="quick-view-image">
+            <img id="imgModalSrc" src="" alt="Producto">
         </div>
+
+        <div class="quick-view-info">
+            <span class="quick-code" id="quickCode">Código</span>
+
+            <h3 id="quickName">Nombre del producto</h3>
+
+            <strong class="quick-price" id="quickPrice">Q 0.00</strong>
+            
+            <div id="quickRating" class="quick-rating"></div>
+
+            <div class="quick-qty-box">
+                <span>Cantidad</span>
+
+                <div class="quick-qty-controls">
+                    <button type="button" id="quickQtyMinus">-</button>
+                    <strong id="quickQtyValue">1</strong>
+                    <button type="button" id="quickQtyPlus">+</button>
+                </div>
+            </div>
+
+            <button type="button" class="quick-add-btn" id="quickAddBtn">
+                AGREGAR AL CARRITO
+            </button>
+        </div>
+
+    </div>
+</div>
 
         {{-- ======= CARRITO UI ======= --}}
 

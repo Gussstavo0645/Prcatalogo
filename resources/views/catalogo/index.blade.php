@@ -237,7 +237,7 @@
     </div>
 </div>
 
-        <a href="#catalogos-disponibles" class="cash-rewards-side-btn">
+               <a href="#catalogos-disponibles" class="cash-rewards-side-btn">
             Ver catálogos
             <i class="bi bi-arrow-right"></i>
         </a>
@@ -245,6 +245,122 @@
     </aside>
 
 </div>
+
+
+{{-- PRODUCTOS MÁS VENDIDOS --}}
+<section class="best-sellers-wide">
+
+    <div class="best-sellers-header">
+        <div>
+            <span class="best-eyebrow">MARLEN LAMUR</span>
+            <h2>Productos más vendidos</h2>
+            <p>Los favoritos de nuestros clientes.</p>
+        </div>
+
+        <div class="best-controls">
+            <button type="button" data-best-prev>
+                <i class="bi bi-arrow-left"></i>
+            </button>
+
+            <button type="button" data-best-next>
+                <i class="bi bi-arrow-right"></i>
+            </button>
+        </div>
+    </div>
+
+    <div class="best-slider">
+        <div class="best-track" data-best-track>
+
+            @forelse($masVendidos ?? [] as $prod)
+                @php
+                    $code = trim($prod->code ?? $prod->Codprod ?? '');
+                    $color = trim($prod->color ?? '');
+                    $name = $prod->name ?? $prod->Descripcion ?? 'Producto';
+                    $price = (float) ($prod->price ?? $prod->Precventa ?? 0);
+
+                    $imgUrl = route('catalog.product.image', [
+                        'code' => $code,
+                        'color' => $color
+                    ]);
+                @endphp
+
+                <article class="best-card">
+                    @if($loop->iteration <= 2)
+                        <span class="best-badge">Más vendido</span>
+                    @endif
+
+                    <button type="button" class="best-heart">
+                        <i class="bi bi-heart"></i>
+                    </button>
+
+                    <div class="best-img-box">
+                        <img src="{{ $imgUrl }}"
+                             alt="{{ $name }}"
+                             onerror="this.src='{{ asset('imagenes/no-image.png') }}'">
+                    </div>
+
+                    <span class="best-code">
+    Código: {{ $code }}{{ $color !== '' ? '-' . $color : '' }}
+</span>
+
+                    <h3>{{ \Illuminate\Support\Str::limit($name, 45) }}</h3>
+
+                   @php
+    $avgRating = (float)($prod->avg_rating ?? 0);
+    $totalReviews = (int)($prod->total_reviews ?? 0);
+    $filledStars = (int) round($avgRating);
+@endphp
+
+<div class="best-stars" title="{{ $totalReviews > 0 ? $avgRating . ' de 5' : 'Sin calificaciones' }}">
+    @if($totalReviews > 0)
+        @for($i = 1; $i <= 5; $i++)
+            <span class="{{ $i <= $filledStars ? 'star-on' : 'star-off' }}">★</span>
+        @endfor
+
+        <small class="rating-count">
+            {{ number_format($avgRating, 1) }} / 5
+        </small>
+    @else
+        @for($i = 1; $i <= 5; $i++)
+            <span class="star-off">★</span>
+        @endfor
+
+        <small class="rating-count">
+            Sin calificaciones
+        </small>
+    @endif
+</div>
+
+                    <div class="best-price">
+                        Q{{ number_format($price, 2) }}
+                    </div>
+
+                    <button type="button"
+        class="best-add-btn"
+        data-code="{{ $code }}"
+        data-color="{{ $color }}"
+        data-name="{{ $name }}"
+        data-price="{{ $price }}"
+        data-img="{{ $imgUrl }}"
+        data-rating="{{ $avgRating }}"
+        data-reviews="{{ $totalReviews }}"
+        onclick="addBestSellerToCart(this)">
+    Agregar
+</button>
+                </article>
+            @empty
+                <div class="best-empty">
+                    No hay productos más vendidos todavía.
+                </div>
+            @endforelse
+
+        </div>
+    </div>
+
+    <div class="best-dots" data-best-dots></div>
+
+</section>
+
 
     <!-- LISTADO -->
     <section class="catalog-list-wrap" id="catalogos-disponibles">

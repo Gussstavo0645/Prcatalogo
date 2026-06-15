@@ -13,6 +13,7 @@ use App\Http\Controllers\ClientePublicController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\PagoNeoPayController;
 use App\Http\Controllers\Admin\PremioContadoController;
+  use App\Http\Controllers\ProductReviewController;
 
 /*
 |--------------------------------------------------------------------------
@@ -72,6 +73,16 @@ Route::post('/pagos/neopay/webhook', [PagoNeoPayController::class, 'webhook'])
     ->name('neopay.webhook');
 
 
+  
+
+Route::get('/pedido/{pedido}/calificar', [ProductReviewController::class, 'create'])
+    ->name('pedido.calificar');
+
+Route::post('/pedido/{pedido}/calificar', [ProductReviewController::class, 'store'])
+    ->name('pedido.calificar.store');
+
+    Route::post('/pedido/{pedido}/calificar-item', [ProductReviewController::class, 'storeItem'])
+    ->name('pedido.calificar.item');
 /*
 |--------------------------------------------------------------------------
 | DASHBOARD BREEZE
