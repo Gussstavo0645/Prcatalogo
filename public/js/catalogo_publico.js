@@ -39,10 +39,10 @@ async function salirFullscreenSiActivo() {
       document.webkitExitFullscreen();
     }
   } catch (e) {
-    console.log('No se pudo salir de fullscreen nativo:', e);
+    // Si el navegador bloquea salir de fullscreen, seguimos limpiando el modo CSS.
   }
 
-    sessionStorage.removeItem('catalog_keep_fullscreen');
+  sessionStorage.removeItem('catalog_keep_fullscreen');
   sessionStorage.removeItem('catalog_restore_fullscreen');
 
   // También quitar pantalla completa por CSS
@@ -53,6 +53,7 @@ async function salirFullscreenSiActivo() {
   );
 
   const flipbook = document.getElementById('flipbook');
+
   if (flipbook) {
     flipbook.style.transform = 'scale(1)';
     flipbook.style.opacity = '1';
@@ -320,31 +321,32 @@ function createPageChunkLoader(root, options = {}) {
 
   const requestedOffsets = new Set();
 
-function getPageKey(page) {
-  if (!page) return '';
+  function getPageKey(page) {
+    if (!page) return '';
 
-  // Esta es la clave correcta.
-  // Permite página 38 parte 1 y página 38 parte 2.
-  if (page.dataset.renderKey) {
-    return String(page.dataset.renderKey).trim();
+    // Esta es la clave correcta.
+    // Permite página 38 parte 1 y página 38 parte 2.
+    if (page.dataset.renderKey) {
+      return String(page.dataset.renderKey).trim();
+    }
+
+    // Fallback
+    if (page.dataset.pageId && page.dataset.pageNumber) {
+      return 'page-' + page.dataset.pageId + '-' + page.dataset.pageNumber;
+    }
+
+    if (page.dataset.pageNumber) {
+      return 'num-' + String(page.dataset.pageNumber).trim();
+    }
+
+    const badge = page.querySelector('.page-badge');
+
+    if (badge) {
+      return badge.textContent.trim();
+    }
+
+    return page.outerHTML.slice(0, 150);
   }
-
-  // Fallback
-  if (page.dataset.pageId && page.dataset.pageNumber) {
-    return 'page-' + page.dataset.pageId + '-' + page.dataset.pageNumber;
-  }
-
-  if (page.dataset.pageNumber) {
-    return 'num-' + String(page.dataset.pageNumber).trim();
-  }
-
-  const badge = page.querySelector('.page-badge');
-  if (badge) {
-    return badge.textContent.trim();
-  }
-
-  return page.outerHTML.slice(0, 150);
-}
   function getLoadedRealPages() {
     return root.querySelectorAll('.page').length;
   }
@@ -360,8 +362,7 @@ function getPageKey(page) {
 
     if (loaded >= total) return;
 
-    if (requestedOffsets.has(loaded)) {
-      console.log('Offset ya solicitado, no se repite:', loaded);
+      if (requestedOffsets.has(loaded)) {
       return;
     }
 
@@ -376,7 +377,6 @@ function getPageKey(page) {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
       const data = await res.json();
-      console.log('DATA BLOQUE:', data);
 
       if (!data.html || Number(data.count || 0) <= 0) return;
 
@@ -466,9 +466,9 @@ function lockFlipOnOverlay(root, selector) {
   root.querySelectorAll(selector).forEach((el) => {
     const stopMouse = (e) => e.stopPropagation();
 
-   const stopTouchMove = (e) => {
-  e.stopPropagation();
-};
+    const stopTouchMove = (e) => {
+      e.stopPropagation();
+    };
 
     el.addEventListener('mousedown', stopMouse, { capture: true });
     el.addEventListener('mousemove', stopMouse, { capture: true });
@@ -815,8 +815,6 @@ window.esClienteNoInscrito = [
   'bodega'
 ].includes(data.tipo);
 
-console.log('Tipo cliente:', data.tipo);
-console.log('Cliente no inscrito:', window.esClienteNoInscrito);
 
 desbloquearCamposCliente();
 document.getElementById('cliNombre')?.focus();
@@ -1227,8 +1225,6 @@ if (!token) {
   return;
 }
 
-console.log('CSRF TOKEN:', token);
-console.log('PAYLOAD PEDIDO:', payload);
 
 const res = await fetch('/pedido/finalizar', {
   method: 'POST',
@@ -1522,16 +1518,7 @@ function resetCheckoutForm() {
  document.getElementById('pagoMetodo') && (document.getElementById('pagoMetodo').value = 'efectivo');
   document.getElementById('pagoFactura') && (document.getElementById('pagoFactura').value = 'no');
 }
-/* ==========================
-   🔍 MODAL IMAGEN
-========================== */
-function closeImgModal(){
-  const modal = document.getElementById('imgModal');
-  const img = document.getElementById('imgModalSrc');
 
-  modal?.classList.remove('active');
-  if (img) img.src = '';
-}
 
 
 
@@ -1541,21 +1528,18 @@ function closeImgModal(){
 (function () {
   const root = document.getElementById('flipbook');
   const wrap = document.getElementById('flipbook-wrap');
-  const btn = document.getElementById('btnFullscreen');
-    const indicator = document.getElementById('page-indicator');
+  const indicator = document.getElementById('page-indicator');
 
   if (!root || !wrap) return;
 
     
 
   const chunkLoader = createPageChunkLoader(root, {
-    blockSize: 6,
-    threshold: 2
+    blockSize: 12,
+    threshold: 4
   });
 
-function isSingle() {
-  return window.innerWidth <= 600;
-}
+
 
 function getBaseSize() {
   const vw = window.innerWidth;
@@ -1591,11 +1575,7 @@ function shouldShowCover() {
 
   return true;
 }
-  //function getBaseSize() {
-    //return isSingle()
-    //  d? { width: 460, height: 590, portrait: true }
-    //  : { width: 460, height: 600, portrait: false };
-  //}
+  
 
   let base = getBaseSize();
 
@@ -1619,6 +1599,11 @@ showCover: shouldShowCover(),
 root.style.height = base.height + 'px';
 
 pageFlip.loadFromHTML(root.querySelectorAll('.page'));
+
+// Precargar el siguiente bloque para que en teléfono no se quede en página 6
+setTimeout(() => {
+  chunkLoader.loadNextBlock(pageFlip);
+}, 600);
 
 const prevBtn = document.getElementById('prev');
 const nextBtn = document.getElementById('next');
@@ -1693,7 +1678,7 @@ pageFlip.on('flip', function () {
   cargarThumbsCercanas();
 });
 lockFlipOnOverlay(root, '.products-overlay');
-//bindZoomPreload(root);
+bindZoomPreload(root);
 bindProductZoom(root);
 
     function updatePageIndicator() {
@@ -1776,8 +1761,6 @@ function applyFullscreenScale() {
   root.style.transform = `scale(${scale})`;
   root.style.transformOrigin = 'center center';
 
-  console.log('FULL base:', base);
-  console.log('scale:', scale);
 }
 
 window.forzarAjusteFlipbook = function () {
@@ -2184,7 +2167,6 @@ modalAcumulado?.show();
       const flipbook = document.getElementById('flipbook');
 const mesope = flipbook?.dataset?.mesyope || '';
 
-console.log('MESOPE enviado:', mesope);
 
 const res = await fetch(`/clientes/acumulado/${encodeURIComponent(codcliente)}?mesope=${encodeURIComponent(mesope)}`, {
   headers: {
@@ -2645,16 +2627,16 @@ document.addEventListener('DOMContentLoaded', function () {
 
   async function abrirCatalogoAlSeleccionarTienda() {
     if (!storeSelect || !flipbookWrap) {
-      console.log('No existe store_id o flipbook-wrap');
+      
       return;
     }
 
     if (!storeSelect.value) {
-      console.log('No hay tienda seleccionada');
+    
       return;
     }
 if (esTelefono()) {
-  console.log('Teléfono: no se abre pantalla completa al seleccionar tienda');
+  
 
   document.body.classList.remove(
     'tablet-catalog-fullscreen',
@@ -2667,11 +2649,11 @@ await salirFullscreenSiActivo();
   return;
 }
 if (!esTablet()) {
-  console.log('No es tablet: no se abre pantalla completa al seleccionar tienda');
+  
   return;
 }
  
-    console.log('Tienda seleccionada, abriendo catálogo en tablet...');
+    
 
     actualizarOrientacionCatalogo();
 
@@ -2688,7 +2670,7 @@ if (!esTablet()) {
         }
       }
     } catch (e) {
-      console.log('Fullscreen nativo bloqueado, usando modo CSS:', e);
+      
     }
 
    setTimeout(() => {
@@ -2760,7 +2742,7 @@ document.addEventListener('DOMContentLoaded', function () {
     if (!flipbookWrap) return;
 
     if (esTelefono()) {
-      console.log('Teléfono: no abrir fullscreen manual');
+      
       return;
     }
 
@@ -2780,7 +2762,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
       }
     } catch (e) {
-      console.log('Fullscreen nativo bloqueado, usando modo CSS:', e);
+      
     }
 
     setTimeout(() => {

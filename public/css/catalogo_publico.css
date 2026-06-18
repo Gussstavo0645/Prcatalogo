@@ -4320,36 +4320,7 @@ body.catalog-body {
   font-size: 14px;
 }
 
-.product-mini {
-  display: flex !important;
-  flex-direction: column !important;
-  overflow: hidden !important;
-}
 
-.product-mini img {
-  flex-shrink: 0 !important;
-}
-
-.p-code {
-  white-space: nowrap !important;
-  overflow: hidden !important;
-  text-overflow: ellipsis !important;
-}
-
-.p-name {
-  min-height: 22px !important;
-  max-height: 22px !important;
-  overflow: hidden !important;
-}
-
-.p-price {
-  flex-shrink: 0 !important;
-}
-
-.product-mini button.badge {
-  margin-top: auto !important;
-  flex-shrink: 0 !important;
-}
 
 
 /*
@@ -4399,6 +4370,7 @@ body.catalog-body {
   font-size: 15px !important;
   line-height: 1.2 !important;
   margin-top: -3px !important;
+  flex-shrink: 0 !important;
 }
 
 .product-mini button.badge {
@@ -4408,7 +4380,7 @@ body.catalog-body {
   bottom: 4px !important;
   height: 10px !important;
   min-height: 24px !important;
-  line-height: -50 !important;
+  line-height: 1 !important;
   padding: 0 !important;
   margin: 0 !important;
   display: flex !important;
@@ -4420,23 +4392,7 @@ body.catalog-body {
 }
 
 
-/*
-   =====================================================
-   FORZAR IMAGEN MÁS GRANDE EN TARJETA DE PRODUCTO
-   =====================================================
-*/
 
-.product-mini img,
-.product-mini img.product-thumb {
-  width: 125% !important;
-  max-width: none !important;
-  height: 186px !important;
-  object-fit: contain !important;
-  object-position: center !important;
-  margin-left: -12.5% !important;
-  margin-right: -12.5% !important;
-  display: block !important;
-}
 
 
 /*
@@ -4623,168 +4579,15 @@ body.catalog-body {
     padding-bottom: 20px !important;
   }
 
-  .floating-buttons {
-    position: fixed !important;
-    left: 10px !important;
-    bottom: 22px !important;
-    display: flex !important;
-    flex-direction: row !important;
-    align-items: center !important;
-    gap: 10px !important;
-    z-index: 9999 !important;
-  }
-
-  .float-btn {
-    width: 52px !important;
-    height: 52px !important;
-    font-size: 21px !important;
-  }
-
-  .float-btn:hover {
-    transform: scale(1.08) !important;
-  }
-
-}
-
-@media (max-width: 600px) {
-  .cart-fab {
-    position: fixed !important;
-    top: auto !important;
-    bottom: calc(env(safe-area-inset-bottom) + 18px) !important;
-    z-index: 9999 !important;
-    touch-action: none !important;
-  }
-
-  .floating-buttons {
-    position: fixed !important;
-    left: 14px !important;
-    bottom: calc(env(safe-area-inset-bottom) + 18px) !important;
-    z-index: 9998 !important;
-    flex-direction: row !important;
-    gap: 10px !important;
-  }
-
-}
-
-@media (max-width: 600px) {
-  .cart-fab {
-    position: fixed !important;
-    top: auto !important;
-    bottom: calc(env(safe-area-inset-bottom) + 18px) !important;
-    z-index: 9999 !important;
-    touch-action: none !important;
-  }
-
-  .floating-buttons {
-    position: fixed !important;
-    left: 14px !important;
-    right: auto !important;
-    bottom: calc(env(safe-area-inset-bottom) + 18px) !important;
-    z-index: 9998 !important;
-    flex-direction: row !important;
-    gap: 10px !important;
-  }
-
-  .float-btn {
-    width: 52px !important;
-    height: 52px !important;
-    font-size: 22px !important;
-  }
-
-  body.cart-open .cart-fab,
-  body.cart-open .floating-buttons {
-    opacity: 0 !important;
-    pointer-events: none !important;
-  }
+  
 
 }
 
 
-/*
-   =====================================================
-   FIX FINAL BOTONES FLOTANTES EN CELULAR
-   =====================================================
-*/
 
-@media (max-width: 600px) {
-  .cart-fab {
-    position: fixed !important;
-    top: auto !important;
-    right: auto !important;
-    bottom: 80px !important;
-    z-index: 99999 !important;
-    touch-action: none !important;
-  }
-
-  .floating-buttons {
-    position: fixed !important;
-    left: 14px !important;
-    right: auto !important;
-    bottom: 80px !important;
-    z-index: 99998 !important;
-    display: flex !important;
-    flex-direction: row !important;
-    gap: 10px !important;
-  }
-
-  .float-btn {
-    width: 52px !important;
-    height: 52px !important;
-    font-size: 22px !important;
-  }
-
-  body.cart-open .cart-fab,
-  body.cart-open .floating-buttons {
-    opacity: 0 !important;
-    pointer-events: none !important;
-  }
-
-}
-
-
-/* FIX FINAL: botones flotantes pegados abajo en celular */
-
-@media (max-width: 600px) {
-  .cart-fab {
-    position: fixed !important;
-    top: auto !important;
-    right: auto !important;
-    bottom: 12px !important;
-    z-index: 99999 !important;
-    touch-action: none !important;
-  }
-
-  .floating-buttons {
-    position: fixed !important;
-    left: 14px !important;
-    right: auto !important;
-    bottom: 12px !important;
-    z-index: 99998 !important;
-    display: flex !important;
-    flex-direction: row !important;
-    gap: 10px !important;
-  }
-
-  .float-btn {
-    width: 52px !important;
-    height: 52px !important;
-    font-size: 22px !important;
-  }
-
-  body.cart-open .cart-fab,
-  body.cart-open .floating-buttons {
-    opacity: 0 !important;
-    pointer-events: none !important;
-  }
-
-}
-
-
-/*
-   =====================================================
-   FIX REAL: FLOTANTES ABAJO SIN TAPAR CONTENIDO
-   =====================================================
-*/
+/* =====================================================
+   BOTONES FLOTANTES EN CELULAR - LIMPIO
+===================================================== */
 
 @media (max-width: 600px) {
   body.catalog-body {
@@ -4807,44 +4610,9 @@ body.catalog-body {
   .cart-fab {
     position: fixed !important;
     top: auto !important;
-    right: auto !important;
-    bottom: calc(var(--safe-bottom, 0px) + 12px) !important;
-    z-index: 99999 !important;
-    touch-action: none !important;
-  }
-
-  .floating-buttons {
-    position: fixed !important;
-    left: 14px !important;
-    right: auto !important;
-    bottom: calc(var(--safe-bottom, 0px) + 12px) !important;
-    z-index: 99998 !important;
-    display: flex !important;
-    flex-direction: row !important;
-    gap: 10px !important;
-  }
-
-  .float-btn {
-    width: 52px !important;
-    height: 52px !important;
-    font-size: 22px !important;
-  }
-
-  body.cart-open .cart-fab,
-  body.cart-open .floating-buttons {
-    opacity: 0 !important;
-    pointer-events: none !important;
-  }
-
-}
-
-@media (max-width: 600px) {
-  .cart-fab {
-    position: fixed !important;
-    top: auto !important;
     right: 14px !important;
-    bottom: 12px !important;
-    left: auto;
+    left: auto !important;
+    bottom: calc(var(--safe-bottom, 0px) + 12px) !important;
     z-index: 999999 !important;
     touch-action: none !important;
   }
@@ -4853,7 +4621,7 @@ body.catalog-body {
     position: fixed !important;
     left: 14px !important;
     right: auto !important;
-    bottom: 12px !important;
+    bottom: calc(var(--safe-bottom, 0px) + 12px) !important;
     z-index: 999998 !important;
     display: flex !important;
     flex-direction: row !important;
@@ -4866,6 +4634,13 @@ body.catalog-body {
     font-size: 22px !important;
   }
 
+  body.cart-open .cart-fab,
+  body.cart-open .floating-buttons,
+  body:has(#imgModal.active) .cart-fab,
+  body:has(#imgModal.active) .floating-buttons {
+    opacity: 0 !important;
+    pointer-events: none !important;
+  }
 }
 
 @media (max-width: 600px) {
@@ -4886,11 +4661,7 @@ body.catalog-body {
     object-fit: contain !important;
   }
 
-  body:has(#imgModal.active) .cart-fab,
-  body:has(#imgModal.active) .floating-buttons {
-    opacity: 0 !important;
-    pointer-events: none !important;
-  }
+  
 
 }
 
@@ -5544,23 +5315,13 @@ body.tablet-catalog-fullscreen .btn-exit-fullscreen,
   }
 }
 
-/* Ocultar carrito cuando tenga d-none */
-#cartPanel.cart-panel.d-none {
-  display: none !important;
-}
 
-/* Mostrar carrito solo cuando NO tenga d-none */
-#cartPanel.cart-panel:not(.d-none) {
-  display: flex !important;
-}
 
-#cartPanel.cart-panel.d-none {
-  display: none !important;
-}
 
-#cartPanel.cart-panel:not(.d-none) {
-  display: flex !important;
-}
+
+
+
+
 
 .cart-panel {
   left: auto;
@@ -5781,12 +5542,6 @@ body.tablet-catalog-fullscreen .btn-exit-fullscreen,
     text-align: center;
 }
 
-.best-stars {
-    color: #000;
-    font-size: 15px;
-    letter-spacing: 2px;
-    margin: 8px 0 18px;
-}
 
 .best-price {
     color: #302538;
@@ -6265,30 +6020,6 @@ body.catalog-body .catalog-banner-content {
   }
 }
 
-.best-stars {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 3px;
-  margin: 12px 0;
-  font-size: 15px;
-}
-
-.best-stars .star-on {
-  color: #111111;
-}
-
-.best-stars .star-off {
-  color: #c7c7c7;
-}
-
-.best-stars .rating-count {
-  margin-left: 6px;
-  color: #777;
-  font-size: 11px;
-  font-weight: 700;
-}
-
 /* =====================================================
    CALIFICACIONES REALES - PRODUCTOS MÁS VENDIDOS
    PEGAR AL FINAL DEL CSS
@@ -6385,3 +6116,114 @@ body.catalog-body .catalog-banner-content {
     color: #777;
     font-size: 13px;
 }
+
+/* =====================================================
+   CONTROLES DEL CATÁLOGO - ANTERIOR / SIGUIENTE
+   ===================================================== */
+
+.flip-controls {
+  position: relative;
+  z-index: 9999;
+
+  display: flex !important;
+  justify-content: center;
+  align-items: center;
+  gap: 14px;
+
+  width: fit-content;
+  max-width: calc(100% - 24px);
+
+  margin: 14px auto 0;
+  padding: 10px 14px;
+
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.10);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.28);
+}
+
+.flip-controls button,
+.flip-controls .btn {
+  height: 42px;
+  min-width: 118px;
+
+  border-radius: 999px !important;
+  border: 1px solid rgba(255, 255, 255, 0.28) !important;
+
+  background: rgba(255, 255, 255, 0.12) !important;
+  color: #ffffff !important;
+
+  font-size: 14px;
+  font-weight: 800;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+
+  box-shadow: none !important;
+  transition: all 0.22s ease;
+}
+
+.flip-controls button:hover:not(:disabled),
+.flip-controls .btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.22) !important;
+  transform: translateY(-2px);
+}
+
+.flip-controls button:disabled,
+.flip-controls .btn:disabled {
+  opacity: 0.35 !important;
+  cursor: not-allowed !important;
+  transform: none !important;
+}
+
+#page-indicator {
+  min-width: 58px;
+  height: 34px;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 0 12px;
+  border-radius: 999px;
+
+  background: rgba(0, 0, 0, 0.22);
+  color: #ffffff;
+
+  font-size: 13px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+@media (max-width: 600px) {
+  .flip-controls {
+    width: calc(100% - 10px);
+    padding: 8px 8px;
+    gap: 2px;
+  }
+
+  .flip-controls button,
+  .flip-controls .btn {
+    min-width: 0;
+    flex: 1;
+    height: 40px;
+    font-size: 13px;
+    padding: 0 10px;
+  }
+
+  #page-indicator {
+    min-width: 48px;
+    height: 32px;
+    font-size: 12px;
+    padding: 0 8px;
+  }
+}
+
+/* =====================================================
+  aca lo deje*/
