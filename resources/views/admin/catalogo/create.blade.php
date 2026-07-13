@@ -26,10 +26,29 @@
             {{-- COLUMNA IZQUIERDA --}}
             <div class="col-lg-9">
 
+
+            <div class="admin-tabs mb-4">
+    <button type="button" class="admin-tab-btn active" data-target="secCatalogo">
+        1 Catálogo
+    </button>
+
+    <button type="button" class="admin-tab-btn" data-target="secPaginas" {{ !$catalog ? 'disabled' : '' }}>
+        2 Páginas
+    </button>
+
+    <button type="button" class="admin-tab-btn" data-target="secProductos" {{ !$catalog ? 'disabled' : '' }}>
+        3 Productos
+    </button>
+
+    <button type="button" class="admin-tab-btn" data-target="secEnlaces" {{ !$catalog ? 'disabled' : '' }}>
+        4 Enlaces
+    </button>
+</div>
+
                 {{-- BLOQUE 1: CATÁLOGO --}}
 
                 {{-- BLOQUE 1: CATÁLOGO --}}
-                <div class="section-card">
+                <div id="secCatalogo" class="section-card admin-tab-panel active">
                     <div class="card-header">
                         <span class="step-badge">1</span> Catálogo
                     </div>
@@ -39,18 +58,25 @@
                         <form method="GET" action="{{ route('admin.catalogs.create') }}" id="catalogHeaderForm">
                             <div class="row g-3 align-items-end">
 
-                                <div class="col-md-4">
-                                    <label class="form-label fw-bold">Catálogo Existente</label>
-                                    <select name="catalog" class="form-select">
-                                        <option value="">Seleccionar Catàtalogo</option>
-                                        @foreach ($catalogs as $c)
-                                            <option value="{{ $c->id }}"
-                                                {{ request('catalog') == $c->id ? 'selected' : '' }}>
-                                                {{ $c->title }}
-                                            </option>
-                                        @endforeach
-                                    </select>
-                                </div>
+                               <div class="col-md-4">
+    <label class="form-label fw-bold">Catálogo Existente</label>
+
+    <select name="catalog" class="form-select">
+        <option value="">Seleccionar Catálogo</option>
+
+        @foreach ($catalogs as $c)
+            <option value="{{ $c->id }}"
+                {{ request('catalog') == $c->id ? 'selected' : '' }}>
+
+                #{{ $c->id }}
+                - {{ \Illuminate\Support\Str::limit($c->title, 18) }}
+                | {{ $c->mesyope ?? 'Sin mes' }}
+                | {{ $c->products_count ?? 0 }} prod
+
+            </option>
+        @endforeach
+    </select>
+</div>
 
                                 <div class="col-md-2">
                                     <label class="form-label fw-bold">Mes</label>
@@ -100,8 +126,7 @@
 <input type="hidden" name="mesyope" value="{{ $mesActual }}">
 <input type="hidden" name="tipocatalogo" value="{{ $tipoCatalogoActual }}">
 
-                            <input type="hidden" name="mesyope" value="{{ $mesActual }}">
-                            <input type="hidden" name="tipocatalogo" value="{{ $tipoCatalogoActual }}">
+                            
                             <div class="row g-3 align-items-end">
                                 <div class="col-md-4">
                                     <label class="form-label fw-bold">Título</label>
@@ -184,59 +209,61 @@
                     </div>
                 </div>
                 {{-- BLOQUE 2: PÁGINAS --}}
-                <div class="section-card {{ !$catalog ? 'disabled-block' : '' }}">
-                    <div class="card-header">
-                        <span class="step-badge">2</span> Páginas del catálogo
+<div id="secPaginas" class="section-card admin-tab-panel {{ !$catalog ? 'disabled-block' : '' }}">
+    <div class="card-header">
+        <span class="step-badge">2</span> Páginas del catálogo
+    </div>
+
+    <div class="card-body">
+        @if ($catalog)
+            <form action="{{ route('admin.catalogs.pages.store', $catalog) }}" method="POST"
+                enctype="multipart/form-data">
+                @csrf
+
+                <div class="row g-3 align-items-end">
+                    <div class="col-md-8">
+                        <label class="form-label fw-bold">Subir páginas</label>
+                        <input type="file" name="pages[]" class="form-control" multiple>
+                        <small class="text-muted">Sube las páginas en orden (page-001, page-002...).</small>
                     </div>
 
-                    <div class="card-body">
-                        @if ($catalog)
-                            <form action="{{ route('admin.catalogs.pages.store', $catalog) }}" method="POST"
-                                enctype="multipart/form-data">
-                                @csrf
+                    <div class="col-md-2 d-grid">
+                        <button type="submit" class="btn btn-primary">Guardar</button>
+                    </div>
 
-                                <div class="row g-3 align-items-end">
-                                    <div class="col-md-8">
-                                        <label class="form-label fw-bold">Subir páginas</label>
-                                        <input type="file" name="pages[]" class="form-control" multiple>
-                                        <small class="text-muted">Sube las páginas en orden (page-001, page-002...).</small>
-                                    </div>
-
-                                    <div class="col-md-2 d-grid">
-                                        <button type="submit" class="btn btn-primary">Guardar</button>
-                                    </div>
-
-                                    <div class="col-md-2 d-grid">
-                                        <button type="button" class="btn btn-outline-dark" data-bs-toggle="modal"
-                                            data-bs-target="#pagesModal">
-                                            Ver páginas
-                                        </button>
-                                    </div>
-                                </div>
-                            </form>
-                        @else
-                            <div class="alert alert-info mb-0">
-                                Primero crea un catálogo y luego podrás subir sus páginas aquí.
-                            </div>
-                        @endif
+                    <div class="col-md-2 d-grid">
+                        <button type="button" class="btn btn-outline-dark" data-bs-toggle="modal"
+                            data-bs-target="#pagesModal">
+                            Ver páginas
+                        </button>
                     </div>
                 </div>
-
-                @if ($catalog)
-                    <div class="mb-3 text-end">
-                        <a href="{{ route('admin.catalogos.combos.create', $catalog->id) }}" class="btn btn-warning">
-                            ➕ Crear Combo
-                        </a>
-                    </div>
-                @endif
+            </form>
+        @else
+            <div class="alert alert-info mb-0">
+                Primero crea un catálogo y luego podrás subir sus páginas aquí.
+            </div>
+        @endif
+    </div>
+</div>
 
                 {{-- BLOQUE 3: PRODUCTOS --}}
-                <div class="section-card {{ !$catalog ? 'disabled-block' : '' }}">
-                    <div class="card-header">
-                        <span class="step-badge">3</span> Buscar y agregar productos
-                    </div>
+<div id="secProductos" class="admin-tab-panel {{ !$catalog ? 'disabled-block' : '' }}">
 
-                    <div class="card-body">
+    @if ($catalog)
+        <div class="mb-3 text-end">
+            <a href="{{ route('admin.catalogos.combos.create', $catalog->id) }}" class="btn btn-warning">
+                ➕ Crear Combo
+            </a>
+        </div>
+    @endif
+
+    <div class="section-card {{ !$catalog ? 'disabled-block' : '' }}">
+        <div class="card-header">
+            <span class="step-badge">3</span> Buscar y agregar productos
+        </div>
+
+        <div class="card-body">
                         @if (!$catalog)
                             <div class="alert alert-info mb-0">
                                 Primero crea o selecciona un catálogo para agregar productos.
@@ -331,9 +358,11 @@
                     </div>
                 </div>
 
+                </div> {{-- cierre de secProductos --}}
+
                 {{-- BLOQUE 4: LINKS --}}
                 @if ($catalog)
-                    <div class="section-card">
+                    <div id="secEnlaces" class="section-card admin-tab-panel">
                         <div class="card-header">
                             Enlaces del catálogo
                         </div>

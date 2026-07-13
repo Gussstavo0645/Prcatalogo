@@ -1565,14 +1565,6 @@ function getBaseSize() {
 }
 
 function shouldShowCover() {
-  const vw = window.innerWidth;
-  const vh = window.innerHeight;
-
-  // En tablet horizontal no usar portada sola
-  if (vw > vh && vw <= 1200) {
-    return false;
-  }
-
   return true;
 }
   
@@ -1599,6 +1591,18 @@ showCover: shouldShowCover(),
 root.style.height = base.height + 'px';
 
 pageFlip.loadFromHTML(root.querySelectorAll('.page'));
+
+function syncCoverRight() {
+  const current = pageFlip.getCurrentPageIndex();
+
+  if (!base.portrait && current === 0) {
+    root.classList.add('cover-right');
+  } else {
+    root.classList.remove('cover-right');
+  }
+}
+
+syncCoverRight();
 
 // Precargar el siguiente bloque para que en teléfono no se quede en página 6
 setTimeout(() => {
@@ -1916,6 +1920,7 @@ updateFullscreenButton();
 window.addEventListener('resize', updateFullscreenButton);
 window.addEventListener('orientationchange', updateFullscreenButton);
  pageFlip.on('flip', () => {
+  syncCoverRight();
   updatePageIndicator();
   chunkLoader.check(pageFlip);
 });
@@ -2414,14 +2419,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
 
 (function () {
-    if (document.getElementById('stockTooltip')) return;
-
-    const tooltip = document.createElement('div');
-    tooltip.id = 'stockTooltip';
-    document.body.appendChild(tooltip);
-
-    let activeCard = null;
-
     function escapeHtml(value) {
         return String(value ?? '').replace(/[&<>"']/g, function (s) {
             return {
@@ -2437,92 +2434,110 @@ document.addEventListener('DOMContentLoaded', function () {
     function renderStock(data) {
         if (!Array.isArray(data) || data.length === 0) {
             return `
-                <div class="stock-title">Existencias</div>
-                <div class="stock-empty">Sin unidades disponibles.</div>
+                <div class="text-muted">
+                    Sin unidades disponibles.
+                </div>
             `;
         }
 
-        const total = data.reduce((sum, item) => {
-            return sum + Number(item.stock || 0);
-        }, 0);
-
         const rows = data.map(item => {
-    const tienda = item.tienda || item.Nombodega || item.bodega || 'Tienda';
-    const stock = Number(item.stock || item.Saldo || 0);
+            const tienda = item.tienda || item.Nombodega || item.bodega || 'Tienda';
+            const stock = Number(item.stock || item.Saldo || 0);
 
-    return `
-        <div class="stock-line">
-            <span>${escapeHtml(tienda)}</span>
-            <b>${stock}</b>
-        </div>
-    `;
-}).join('');
+            return `
+                <tr>
+                    <td>${escapeHtml(tienda)}</td>
+                    <td class="text-end fw-bold">${stock}</td>
+                </tr>
+            `;
+        }).join('');
 
-
-//${total}
         return `
-            <div class="stock-title">Existencias: </div>
-            ${rows}
+            <div class="table-responsive">
+                <table class="table table-dark table-sm align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>Bodega</th>
+                            <th class="text-end">Existencia</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rows}
+                    </tbody>
+                </table>
+            </div>
         `;
     }
 
-    function moveTooltip(event) {
-        let x = event.clientX + 18;
-        let y = event.clientY + 18;
+    function agregarBotonesExistencias() {
+        document.querySelectorAll('.product-mini').forEach(card => {
+            if (card.dataset.stockButtonReady === '1') return;
 
-        tooltip.style.left = x + 'px';
-        tooltip.style.top = y + 'px';
+            const rawStock = card.getAttribute('data-stock') || '[]';
 
-        const rect = tooltip.getBoundingClientRect();
+            let data = [];
 
-        if (rect.right > window.innerWidth - 12) {
-            x = event.clientX - rect.width - 18;
-        }
+            try {
+                data = JSON.parse(rawStock);
+            } catch (e) {
+                data = [];
+            }
 
-        if (rect.bottom > window.innerHeight - 12) {
-            y = event.clientY - rect.height - 18;
-        }
+            const total = data.reduce((sum, item) => {
+                return sum + Number(item.stock || item.Saldo || 0);
+            }, 0);
 
-        tooltip.style.left = x + 'px';
-        tooltip.style.top = y + 'px';
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'btn-stock-producto';
+            btn.innerHTML = `Stock`;
+
+            btn.addEventListener('pointerdown', function (e) {
+    e.preventDefault();
+    e.stopPropagation();
+}, { passive: false });
+
+            btn.addEventListener('click', function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+
+                const fullscreenTarget =
+    document.fullscreenElement ||
+    document.webkitFullscreenElement ||
+    document.body;
+
+Swal.fire({
+    target: fullscreenTarget,
+    title: 'Existencias',
+    html: renderStock(data),
+    width: 520,
+    confirmButtonText: 'Cerrar',
+    confirmButtonColor: '#6d3cff',
+    background: '#15182b',
+    color: '#ffffff',
+    heightAuto: false
+});
+            });
+
+            card.appendChild(btn);
+            card.dataset.stockButtonReady = '1';
+        });
     }
 
-    document.addEventListener('pointerover', function (event) {
-        if (event.pointerType !== 'mouse') return;
+    document.addEventListener('DOMContentLoaded', agregarBotonesExistencias);
 
-        const card = event.target.closest('.product-mini');
-        if (!card) return;
+    const flipbook = document.getElementById('flipbook');
 
-        activeCard = card;
+    if (flipbook) {
+        const observer = new MutationObserver(function () {
+            agregarBotonesExistencias();
+        });
 
-        let data = [];
-
-        try {
-            const rawStock = card.getAttribute('data-stock') || '[]';
-data = JSON.parse(rawStock);
-        } catch (e) {
-            data = [];
-        }
-
-        tooltip.innerHTML = renderStock(data);
-        tooltip.classList.add('visible');
-        moveTooltip(event);
-    });
-
-    document.addEventListener('pointermove', function (event) {
-        if (!activeCard) return;
-        moveTooltip(event);
-    });
-
-    document.addEventListener('pointerout', function (event) {
-        const card = event.target.closest('.product-mini');
-
-        if (!card) return;
-        if (card.contains(event.relatedTarget)) return;
-
-        activeCard = null;
-        tooltip.classList.remove('visible');
-    });
+        observer.observe(flipbook, {
+            childList: true,
+            subtree: true
+        });
+    }
 })();
 
 function updateSafeBottom() {

@@ -546,3 +546,53 @@ document.addEventListener('mouseover', function(e){
 });
 
 /* */
+
+function initAdminCatalogTabs() {
+  const buttons = document.querySelectorAll('.admin-tab-btn');
+  const sections = document.querySelectorAll('.admin-tab-panel');
+
+  if (!buttons.length || !sections.length) return;
+
+  function openTab(targetId) {
+    const target = document.getElementById(targetId);
+    const button = document.querySelector(`.admin-tab-btn[data-target="${targetId}"]`);
+
+    if (!target || !button || button.disabled) return;
+
+    sections.forEach(section => {
+      section.classList.remove('active');
+    });
+
+    buttons.forEach(btn => {
+      btn.classList.remove('active');
+    });
+
+    target.classList.add('active');
+    button.classList.add('active');
+
+    localStorage.setItem('admin_catalog_active_tab', targetId);
+
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth'
+    });
+  }
+
+  buttons.forEach(button => {
+    button.addEventListener('click', function () {
+      openTab(this.dataset.target);
+    });
+  });
+
+  const savedTab = localStorage.getItem('admin_catalog_active_tab');
+
+  if (savedTab && document.getElementById(savedTab)) {
+    const savedButton = document.querySelector(`.admin-tab-btn[data-target="${savedTab}"]`);
+
+    if (savedButton && !savedButton.disabled) {
+      openTab(savedTab);
+    }
+  }
+}
+
+document.addEventListener('DOMContentLoaded', initAdminCatalogTabs);

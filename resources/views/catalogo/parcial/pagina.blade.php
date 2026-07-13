@@ -7,13 +7,15 @@
   $itemsKey = $items->map(function ($p) {
       return ($p->code ?? '') . '-' . ($p->color ?? '');
   })->implode('|');
+$renderKey = $pagina->id . '-' . $pageNum . '-' . md5($itemsKey);
 
-  $renderKey = $pagina->id . '-' . $pageNum . '-' . md5($itemsKey);
+// La portada debe ser la primera página del catálogo
+$isCover = $pageNum === 1;
 @endphp
 
 
-<div class="page {{ $pageNum === 1 ? 'page-cover' : '' }}"
-     data-density="{{ $pageNum === 1 ? 'hard' : 'soft' }}"
+<div class="page {{ $isCover ? 'page-cover' : '' }}"
+     data-density="{{ $isCover ? 'hard' : 'soft' }}"
      data-page-number="{{ $pageNum }}"
      data-page-id="{{ $pagina->id }}"
      data-render-key="{{ $renderKey }}">

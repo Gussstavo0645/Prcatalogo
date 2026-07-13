@@ -813,3 +813,83 @@ select.form-select option{
         font-size: 17px;
     }
 }
+
+
+/* =====================================================
+   TABS ADMIN CREAR CATÁLOGO
+===================================================== */
+
+.admin-tabs {
+    position: sticky;
+    top: 90px;
+    z-index: 1000;
+
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+
+    padding: 14px;
+    margin-bottom: 22px;
+
+    background: rgba(25, 27, 49, .96);
+    border: 1px solid rgba(255,255,255,.12);
+    border-radius: 22px;
+
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+
+    box-shadow: 0 16px 38px rgba(10, 11, 28, .28);
+}
+
+.admin-tab-btn {
+    min-height: 46px;
+    border: 1px solid rgba(255,255,255,.16);
+    border-radius: 999px;
+
+    padding: 0 20px;
+
+    background: rgba(255,255,255,.07);
+    color: #fff;
+
+    font-weight: 900;
+    cursor: pointer;
+
+    transition: all .22s ease;
+}
+
+.admin-tab-btn:hover:not(:disabled) {
+    background: rgba(255,255,255,.14);
+    transform: translateY(-2px);
+}
+
+.admin-tab-btn.active {
+    background: linear-gradient(135deg, #ed67cf, #6848f2);
+    border-color: transparent;
+    box-shadow: 0 12px 26px rgba(104,72,242,.35);
+}
+
+.admin-tab-btn:disabled {
+    opacity: .45;
+    cursor: not-allowed;
+}
+
+.admin-tab-panel {
+    display: none;
+}
+
+.admin-tab-panel.active {
+    display: block;
+}
+
+@media (max-width: 768px) {
+    .admin-tabs {
+        top: 10px;
+        gap: 8px;
+    }
+
+    .admin-tab-btn {
+        flex: 1 1 calc(50% - 8px);
+        padding: 0 12px;
+        font-size: 13px;
+    }
+}

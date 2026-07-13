@@ -6227,3 +6227,46 @@ body.catalog-body .catalog-banner-content {
 
 /* =====================================================
   aca lo deje*/
+
+  /* FIX: portada página 1 al lado derecho */
+#flipbook.cover-right .page-cover {
+  left: 50% !important;
+}
+.product-mini {
+    position: relative;
+}
+
+.btn-stock-producto {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    bottom: auto;
+    left: auto;
+    transform: none;
+    z-index: 30;
+
+    border: 0;
+    border-radius: 999px;
+    padding: 4px 8px;
+
+    background: rgba(20, 24, 45, 0.92);
+    color: #fff;
+
+    font-size: 10px;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+    box-shadow: 0 4px 12px rgba(0,0,0,.25);
+}
+
+.btn-stock-producto:hover {
+    background: #6d3cff;
+}
+
+.swal2-container {
+    z-index: 999999 !important;
+}
+
+.tablet-catalog-fullscreen .swal2-container {
+    z-index: 999999 !important;
+}

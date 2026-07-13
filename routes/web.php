@@ -53,7 +53,7 @@ Route::get('/catalogo/producto-thumb/{code}/{color?}', [CatalogoController::clas
     ->name('catalog.product.thumb');
 
 Route::get('/product-image/{product}', [CatalogoController::class, 'productImage'])
-    ->name('admin.products.image');
+    ->whereNumber('product')->name('products.image');
 
 Route::get('/clientes/acumulado/{codcliente}', [ClientePublicController::class, 'acumulado'])
     ->name('clientes.acumulado');
@@ -73,8 +73,6 @@ Route::post('/pagos/neopay/webhook', [PagoNeoPayController::class, 'webhook'])
     ->name('neopay.webhook');
 
 
-  
-
 Route::get('/pedido/{pedido}/calificar', [ProductReviewController::class, 'create'])
     ->name('pedido.calificar');
 
@@ -91,7 +89,7 @@ Route::post('/pedido/{pedido}/calificar', [ProductReviewController::class, 'stor
 
 Route::get('/dashboard', function () {
     return redirect()->route('admin.catalogs.index');
-})->middleware(['auth', 'verified'])->name('dashboard');
+})->middleware(['auth', 'verified', 'admin'])->name('dashboard');
 
 /*
 |--------------------------------------------------------------------------
@@ -117,7 +115,7 @@ Route::middleware('auth')->group(function () {
 |--------------------------------------------------------------------------
 */
 
-Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () {
+Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.')->group(function () {
 
     Route::get('/', function () {
         return redirect()->route('admin.dashboard');

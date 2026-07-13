@@ -25,17 +25,33 @@ class AdminCatalogo extends Controller
         set_time_limit(120);
         ini_set('memory_limit', '1024M');
 
-        $admin = DB::connection('admin_ml');
+       $admin = DB::connection('admin_ml');
 
-        try{
+try {
 
-        $catalogs = Catalogo::select('id', 'title', 'description', 'is_public', 'slug')
-            ->orderByDesc('id')
-            ->get();
+    $catalogoTable = (new Catalogo)->getTable();
 
-        $meses = $admin
-            ->table('inventario')
-            ->selectRaw('TRIM(mesyope) as mesyope')
+    $catalogs = Catalogo::select(
+            'id',
+            'title',
+            'description',
+            'is_public',
+            'slug',
+            'mesyope',
+            'tipocatalogo',
+            'created_at'
+        )
+        ->selectSub(function ($q) use ($catalogoTable) {
+            $q->from('catalog_products')
+                ->selectRaw('COUNT(*)')
+                ->whereColumn('catalog_products.catalog_id', $catalogoTable . '.id');
+        }, 'products_count')
+        ->orderByDesc('id')
+        ->get();
+
+    $meses = $admin
+        ->table('inventario')
+        ->selectRaw('TRIM(mesyope) as mesyope')
             ->whereNotNull('mesyope')
             ->whereRaw("TRIM(mesyope) <> ''")
             ->distinct()
@@ -59,14 +75,30 @@ class AdminCatalogo extends Controller
         $catalogProducts = collect();
         $catalogCombos = collect();
 
-        if ($r->filled('catalog')) {
-            $catalog = Catalogo::findOrFail($r->input('catalog'));
+       if ($r->filled('catalog')) {
+    $catalog = Catalogo::findOrFail($r->input('catalog'));
 
-            $catalogCombos = CatalogCombo::where('catalog_id', $catalog->id)
-                ->orderBy('page_number')
-                ->orderBy('position')
-                ->get();
-        }
+    // Cuando se carga un catálogo existente con mes/tipo,
+    // guardar esos valores en el catálogo para que no quede 99/9999
+    if ($r->filled('mesyope') && $r->filled('tipocatalogo')) {
+        $catalog->update([
+            'mesyope'      => trim((string) $r->input('mesyope')),
+            'tipocatalogo' => trim((string) $r->input('tipocatalogo')),
+            'type'         => trim((string) $r->input('tipocatalogo')),
+        ]);
+
+        $catalog->refresh();
+
+        // También actualizamos las variables usadas para buscar productos
+        $mes = trim((string) $catalog->mesyope);
+        $tipo = trim((string) $catalog->tipocatalogo);
+    }
+
+    $catalogCombos = CatalogCombo::where('catalog_id', $catalog->id)
+        ->orderBy('page_number')
+        ->orderBy('position')
+        ->get();
+}
 
         // IMPORTANTE:
         // create() ya no debe consultar inventario pesado para el grid de búsqueda

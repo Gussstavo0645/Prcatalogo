@@ -815,7 +815,18 @@ $pagesRender = Cache::remember($cacheKey, 300, function () use ($catalog) {
         return trim((string) $row->code) . '|' . trim((string) $row->color);
     });
 
-$productos = $catalogItems->map(function ($item) use ($inventarioMap, $existenciasPorProducto, $ratings) {        $codeOriginal = trim((string) ($item->code ?? ''));
+    $inventarioByCode = $inventario
+    ->groupBy(function ($row) {
+        return trim((string) $row->code);
+    })
+    ->map(function ($rows) {
+        return $rows->first(function ($row) {
+            return trim((string) ($row->name ?? '')) !== '';
+        }) ?? $rows->first();
+    });
+
+$productos = $catalogItems->map(function ($item) use ($inventarioMap, $inventarioByCode, $existenciasPorProducto, $ratings) { 
+        $codeOriginal = trim((string) ($item->code ?? ''));
         $colorOriginal = trim((string) ($item->color ?? ''));
 
         $lookupCode = $codeOriginal;
@@ -842,8 +853,17 @@ $productos = $catalogItems->map(function ($item) use ($inventarioMap, $existenci
             $invExact = $inventarioMap->get($lookupCode . '|0');
         }
 
-        $name = trim((string) ($invExact->name ?? ''));
-        $price = $invExact ? (float) ($invExact->price ?? 0) : 0;
+        $invByCode = $inventarioByCode->get($lookupCode);
+
+$name = trim((string) ($invExact->name ?? ''));
+
+if ($name === '') {
+    $name = trim((string) ($invByCode->name ?? ''));
+}
+
+$price = $invExact
+    ? (float) ($invExact->price ?? 0)
+    : (float) ($invByCode->price ?? 0);
 
         $existencias = $existenciasPorProducto->get($key);
 
