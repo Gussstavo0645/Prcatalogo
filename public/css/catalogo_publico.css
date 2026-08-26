@@ -2243,9 +2243,18 @@ body.catalog-body {
   }
 
   .hero-logo {
-    max-width: 92vw;
-    bottom: 28px;
-  }
+    position: absolute;
+    top: 35px;
+    right: 18px;
+    bottom: auto;
+
+    width: 180px;
+    max-width: 45vw;
+    height: auto;
+
+    transform: none;
+    object-fit: contain;
+}
 
 }
 
