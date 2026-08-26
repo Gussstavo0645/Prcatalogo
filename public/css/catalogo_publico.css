@@ -4650,7 +4650,7 @@ margin: -10px auto -5px !important;
     position: fixed !important;
     left: auto !important;
     right: 12px !important;
-    bottom: 80px !important;
+    bottom: 18px !important;
     z-index: 999998 !important;
 
     display: flex !important;
@@ -4658,7 +4658,11 @@ margin: -10px auto -5px !important;
     gap: 8px !important;
 }
 
-.float-btn {
+.floating-buttons .phone {
+    display: none !important;
+}
+
+.floating-buttons .whatsapp {
     width: 48px !important;
     height: 48px !important;
     font-size: 20px !important;
