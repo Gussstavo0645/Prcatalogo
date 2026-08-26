@@ -58,7 +58,7 @@
                         <form method="GET" action="{{ route('admin.catalogs.create') }}" id="catalogHeaderForm">
                             <div class="row g-3 align-items-end">
 
-                               <div class="col-md-4">
+                               <div class="col-md-3">
     <label class="form-label fw-bold">Catálogo Existente</label>
 
     <select name="catalog" class="form-select">
@@ -79,10 +79,24 @@
 </div>
 
                                 <div class="col-md-2">
-                                    <label class="form-label fw-bold">Mes</label>
-                                    <input type="text" name="mesyope" class="form-control" placeholder="EJEMPLO 05/2026"
-                                        value="{{ request('mesyope') }}" maxlength="7">
-                                </div>
+    <label for="mesyope_carga" class="form-label fw-bold">
+        Mes
+    </label>
+
+    <input
+        type="text"
+        name="mesyope"
+        id="mesyope_carga"
+        class="form-control"
+        value="{{ old('mesyope', request('mesyope', '')) }}"
+        placeholder="08/2026"
+        maxlength="7"
+        inputmode="numeric"
+        pattern="(0[1-9]|1[0-2])/[0-9]{4}"
+        title="Escribe el mes en formato MM/AAAA. Ejemplo: 08/2026"
+        required
+    >
+</div>
 
                                 <div class="col-md-2">
                                     <label class="form-label fw-bold">Tipo</label>
@@ -115,99 +129,179 @@
                         </form>
                         <hr>
 
-                        <form action="{{ route('admin.catalogs.store') }}" method="POST">
-                            @csrf
+                      <form action="{{ route('admin.catalogs.store') }}" method="POST">
+    @csrf
 
-                            @php
-    $mesActual = request('mesyope') ?: ($mes ?: '05/2026');
-    $tipoCatalogoActual = request('tipocatalogo') ?: ($tipo ?: 'N');
-@endphp
+    @php
+        $mesActual = old(
+            'mesyope',
+            request('mesyope') ?: ($mes ?: '')
+        );
 
-<input type="hidden" name="mesyope" value="{{ $mesActual }}">
-<input type="hidden" name="tipocatalogo" value="{{ $tipoCatalogoActual }}">
+        $tipoCatalogoActual = request('tipocatalogo')
+            ?: ($tipo ?: 'N');
+    @endphp
 
-                            
-                            <div class="row g-3 align-items-end">
-                                <div class="col-md-4">
-                                    <label class="form-label fw-bold">Título</label>
-                                    <input name="title" class="form-control" required>
-                                </div>
+    <input
+        type="hidden"
+        name="tipocatalogo"
+        value="{{ $tipoCatalogoActual }}"
+    >
 
-                                <div class="col-md-4">
-                                    <label class="form-label fw-bold">Descripción</label>
-                                    <input name="description" class="form-control">
-                                </div>
+    <div class="row g-3 align-items-end">
 
-                               <div class="col-md-2">
-    <label class="form-label fw-bold">Tipo catálogo</label>
+        <div class="col-md-3">
+            <label class="form-label fw-bold">
+                Título
+            </label>
 
-    <input type="text"
-           class="form-control"
-           value="{{ $tipoCatalogoActual }}"
-           readonly>
+            <input
+                type="text"
+                name="title"
+                value="{{ old('title') }}"
+                class="form-control"
+                required
+            >
+        </div>
+
+        <div class="col-md-3">
+            <label class="form-label fw-bold">
+                Descripción
+            </label>
+
+            <input
+                type="text"
+                name="description"
+                value="{{ old('description') }}"
+                class="form-control"
+            >
+        </div>
+
+      <div class="col-md-2">
+    <label for="nuevo_mesyope" class="form-label fw-bold">
+        Mes
+    </label>
+
+    <input
+        type="text"
+        name="mesyope"
+        id="nuevo_mesyope"
+        class="form-control"
+        value="{{ old('mesyope', request('mesyope', '')) }}"
+        placeholder="08/2026"
+        maxlength="7"
+        inputmode="numeric"
+        pattern="(0[1-9]|1[0-2])/[0-9]{4}"
+        title="Escribe el mes en formato MM/AAAA. Ejemplo: 08/2026"
+        required
+    >
 </div>
 
+        <div class="col-md-2">
+            <label class="form-label fw-bold">
+                Tipo catálogo
+            </label>
 
-                                <div class="col-md-2 d-grid">
-                                    <button class="btn btn-success">Crear</button>
-                                </div>
-                            </div>
-                        </form>
-                        <hr>
+            <input
+                type="text"
+                class="form-control"
+                value="{{ $tipoCatalogoActual }}"
+                readonly
+            >
+        </div>
 
-                        @if ($catalog)
+        <div class="col-md-2 d-grid">
+            <button type="submit" class="btn btn-success">
+                Crear
+            </button>
+        </div>
 
-                            <form action="{{ route('admin.catalogos.tiendas.sync', $catalog->id) }}" method="POST">
-                                @csrf
+    </div>
+</form>
 
-                                <div class="alert alert-light border mb-3">
-                                    <strong>Tiendas asignadas:</strong>
+<hr>
 
-                                    @if ($catalog->tiendas->count())
-                                        <div class="small text-success">
-                                            {{ $catalog->tiendas->map(function ($t) {
-                                                    return str_pad($t->bodega_codigo ?? $t->id, 3, '0', STR_PAD_LEFT) . ' - ' . $t->name;
-                                                })->join(', ') }}
-                                        </div>
-                                    @else
-                                        <div class="small text-danger">
-                                            ⚠ Este catálogo aún no tiene tiendas
-                                        </div>
-                                    @endif
-                                </div>
-                                <label class="form-label fw-bold">Seleccionar tiendas para este catálogo</label>
+@if ($catalog)
 
-                                @foreach ($tiendas as $tienda)
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" name="tiendas[]"
-                                            value="{{ $tienda->id }}" id="tienda{{ $tienda->id }}"
-                                            {{ $catalog->tiendas->contains($tienda->id) ? 'checked' : '' }}>
-                                        <label class="form-check-label" for="tienda{{ $tienda->id }}">
-                                            {{ str_pad($tienda->bodega_codigo, 3, '0', STR_PAD_LEFT) }} -
-                                            {{ $tienda->name }}
-                                        </label>
-                                    </div>
-                                @endforeach
+    <form
+        action="{{ route('admin.catalogos.tiendas.sync', $catalog->id) }}"
+        method="POST"
+    >
+        @csrf
 
-                                <button class="btn btn-primary mt-3">
-                                    Guardar tiendas para este catálogo
-                                </button>
-                                @if (!$catalog->tiendas->count())
-                                    <div class="text-danger mt-2">
-                                        ⚠ Debes asignar al menos una tienda antes de publicar
-                                    </div>
-                                @endif
-                            </form>
-                        @else
-                            <div class="alert alert-info mb-0">
-                                Primero crea o selecciona un catálogo para asignar tiendas.
-                            </div>
+        <div class="alert alert-light border mb-3">
+            <strong>Tiendas asignadas:</strong>
 
+            @if($catalog->tiendas->count())
+                <div class="small text-success">
+                    {{ $catalog->tiendas->map(function ($t) {
+                        return str_pad(
+                            $t->bodega_codigo ?? $t->id,
+                            3,
+                            '0',
+                            STR_PAD_LEFT
+                        ) . ' - ' . $t->name;
+                    })->join(', ') }}
+                </div>
+            @else
+                <div class="small text-danger">
+                    ⚠ Este catálogo aún no tiene tiendas
+                </div>
+            @endif
+        </div>
 
-                        @endif
+        <label class="form-label fw-bold">
+            Seleccionar tiendas para este catálogo
+        </label>
+
+        @foreach($tiendas as $tienda)
+            <div class="form-check">
+                <input
+                    class="form-check-input"
+                    type="checkbox"
+                    name="tiendas[]"
+                    value="{{ $tienda->id }}"
+                    id="tienda{{ $tienda->id }}"
+                    {{ $catalog->tiendas->contains($tienda->id)
+                        ? 'checked'
+                        : '' }}
+                >
+
+                <label
+                    class="form-check-label"
+                    for="tienda{{ $tienda->id }}"
+                >
+                    {{ str_pad(
+                        $tienda->bodega_codigo,
+                        3,
+                        '0',
+                        STR_PAD_LEFT
+                    ) }}
+                    - {{ $tienda->name }}
+                </label>
+            </div>
+        @endforeach
+
+        <button class="btn btn-primary mt-3">
+            Guardar tiendas para este catálogo
+        </button>
+
+        @if(!$catalog->tiendas->count())
+            <div class="text-danger mt-2">
+                ⚠ Debes asignar al menos una tienda antes de publicar
+            </div>
+        @endif
+    </form>
+
+@else
+    <div class="alert alert-info mb-0">
+        Primero crea o selecciona un catálogo para asignar tiendas.
+    </div>
+@endif
 
                     </div>
                 </div>
+
                 {{-- BLOQUE 2: PÁGINAS --}}
 <div id="secPaginas" class="section-card admin-tab-panel {{ !$catalog ? 'disabled-block' : '' }}">
     <div class="card-header">
@@ -415,9 +509,7 @@
                             </div>
                             @php
                                 $mesMostrar = request('mesyope') ?? $mes;
-                                if ($mesMostrar === '05/2026') {
-                                    $mesMostrar = null;
-                                }
+                                
                             @endphp
 
                             <div class="summary-value" style="font-size:16px;">

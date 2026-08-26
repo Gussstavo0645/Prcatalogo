@@ -40,6 +40,10 @@
         Catálogos
     </a>
 
+    <a href="{{ route('admin.catalogos-pdf.index') }}" class="nav-link-custom">
+    Catálogos PDF
+</a>
+
     <a href="{{ route('admin.premios.index') }}" class="nav-link-custom">
     Premios
 </a>

@@ -49,14 +49,18 @@ try {
         ->orderByDesc('id')
         ->get();
 
-    $meses = $admin
-        ->table('inventario')
-        ->selectRaw('TRIM(mesyope) as mesyope')
-            ->whereNotNull('mesyope')
-            ->whereRaw("TRIM(mesyope) <> ''")
-            ->distinct()
-            ->orderByDesc('mesyope')
-            ->pluck('mesyope');
+   $meses = $admin
+    ->table('inventario')
+    ->selectRaw("
+        TRIM(mesyope) as mesyope,
+        STR_TO_DATE(TRIM(mesyope), '%m/%Y') as orden_mes
+    ")
+    ->whereNotNull('mesyope')
+    ->whereRaw("TRIM(mesyope) <> ''")
+    ->whereRaw("TRIM(mesyope) <> '99/9999'")
+    ->distinct()
+    ->orderByDesc('orden_mes')
+    ->pluck('mesyope');
 
         $tipos = $admin
             ->table('inventario')
@@ -702,15 +706,20 @@ return response()->json([
     }
 
     public function store(Request $r)
-    {
-        $data = $r->validate([
-            'title'        => 'required|string|max:255',
-            'description'  => 'nullable|string|max:1000',
-            
-            'is_public'    => 'nullable',
-            'mesyope'      => 'required|string|max:7',
-            'tipocatalogo' => 'required|string|max:5',
-        ]);
+{
+    $data = $r->validate([
+        'title' => 'required|string|max:255',
+        'description' => 'nullable|string|max:1000',
+        'is_public' => 'nullable',
+
+        'mesyope' => [
+            'required',
+            'regex:/^(0[1-9]|1[0-2])\/\d{4}$/',
+            'not_in:99/9999',
+        ],
+
+        'tipocatalogo' => 'required|string|max:5',
+    ]);
 
 $tipoCatalogo = trim($data['tipocatalogo']);
 

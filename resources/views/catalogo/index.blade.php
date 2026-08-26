@@ -17,28 +17,43 @@
                 Descubre nuestras colecciones, promociones y novedades en una experiencia digital moderna.
             </p>
 
-        <div class="hero-actions">
-    <a href="{{ route('catalogo.quisomos') }}" class="hero-btn hero-btn-glass">
+     <div class="hero-actions">
+
+    <a href="{{ route('catalogo.quisomos') }}"
+       class="hero-btn hero-btn-glass">
         <i class="bi bi-stars"></i>
         Quiénes somos
     </a>
 
-    <a href="{{ route('login') }}" class="hero-btn hero-btn-glass">
+    <a href="{{ route('catalogos-pdf.index') }}"
+       class="hero-btn hero-btn-glass">
+        <i class="bi bi-file-earmark-pdf-fill"></i>
+        Catálogos PDF
+    </a>
+
+    <a href="{{ route('login') }}"
+       class="hero-btn hero-btn-glass">
         <i class="bi bi-person-circle"></i>
         Iniciar sesión
     </a>
 
-    <button type="button" id="btnTourInicio" class="hero-btn hero-btn-main">
+    <button
+        type="button"
+        id="btnTourInicio"
+        class="hero-btn hero-btn-main"
+    >
         <i class="bi bi-bag-heart"></i>
         ¿Cómo comprar?
     </button>
 
     @auth
-        <a href="{{ route('admin.catalogs.create') }}" class="hero-btn hero-btn-panel">
+        <a href="{{ route('admin.catalogs.create') }}"
+           class="hero-btn hero-btn-panel">
             <i class="bi bi-grid-1x2-fill"></i>
             Ir al panel
         </a>
     @endauth
+
 </div>
 
 <div class="hero-socials hero-socials-premium" id="tour-redes">
@@ -296,7 +311,7 @@
                     <div class="best-img-box">
                         <img src="{{ $imgUrl }}"
                              alt="{{ $name }}"
-                             onerror="this.src='{{ asset('imagenes/no-image.png') }}'">
+                             onerror="this.onerror=null; this.style.display='none';">
                     </div>
 
                     <span class="best-code">
@@ -562,6 +577,18 @@ document.addEventListener('DOMContentLoaded', function () {
             floatTwo: "{{ asset('imagenes/cuidado2.png') }}"
         }
     ];
+
+    // Cargar las imágenes una sola vez para que el carrusel sea más rápido
+[...new Set(
+    slides.flatMap(slide => [
+        slide.main,
+        slide.floatOne,
+        slide.floatTwo
+    ])
+)].forEach(src => {
+    const image = new Image();
+    image.src = src;
+});
 
     let currentSlide = 0;
     let sliderTimer;

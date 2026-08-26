@@ -15,6 +15,9 @@ use App\Http\Controllers\PagoNeoPayController;
 use App\Http\Controllers\Admin\PremioContadoController;
   use App\Http\Controllers\ProductReviewController;
 
+  use App\Http\Controllers\CatalogPdfController;
+use App\Http\Controllers\Admin\CatalogPdfController as AdminCatalogPdfController;
+
 /*
 |--------------------------------------------------------------------------
 | PÚBLICO
@@ -27,6 +30,15 @@ Route::get('/', function () {
 
 Route::get('/catalogos', [CatalogoController::class, 'index'])
     ->name('catalogs.index');
+
+    Route::get('/catalogos-pdf', [CatalogPdfController::class, 'index'])
+    ->name('catalogos-pdf.index');
+
+Route::get('/catalogos-pdf/{catalogPdf}/ver', [CatalogPdfController::class, 'ver'])
+    ->name('catalogos-pdf.ver');
+
+Route::get('/catalogos-pdf/{catalogPdf}/descargar', [CatalogPdfController::class, 'descargar'])
+    ->name('catalogos-pdf.descargar');
 
 Route::get('/c/{slug}', [CatalogoController::class, 'showPublic'])
     ->name('catalog.public');
@@ -121,8 +133,15 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
         return redirect()->route('admin.dashboard');
     })->name('index');
 
+
+
     Route::get('/catalogos', [AdminCatalogo::class, 'index'])
         ->name('catalogs.index');
+
+        Route::resource('catalogos-pdf', AdminCatalogPdfController::class)
+    ->parameters([
+        'catalogos-pdf' => 'catalogPdf',
+    ]);
 
     Route::get('/catalogos/create', [AdminCatalogo::class, 'create'])
         ->name('catalogs.create');
