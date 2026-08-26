@@ -2242,17 +2242,21 @@ body.catalog-body {
     border-radius: 22px;
   }
 
-  .hero-logo {
-    position: absolute;
-    top: 35px;
-    right: 18px;
-    bottom: auto;
+ .hero-logo {
+    position: absolute !important;
 
-    width: 180px;
-    max-width: 45vw;
-    height: auto;
+    top: 35px !important;
+    right: 18px !important;
+    bottom: auto !important;
+    left: auto !important;
 
-    transform: none;
+    width: 180px !important;
+    max-width: 45vw !important;
+    height: auto !important;
+
+    transform: none !important;
+    animation: none !important;
+
     object-fit: contain;
 }
 
