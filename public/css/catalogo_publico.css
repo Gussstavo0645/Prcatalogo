@@ -2208,10 +2208,9 @@ body.catalog-body {
 
 @media (max-width: 576px) {
   .catalog-hero {
-    padding: 30px 18px 245px;
+    padding: 28px 18px 30px;
     border-radius: 28px;
-  }
-
+}
   .brand-badge {
     margin-bottom: 18px;
     font-size: 12px;
@@ -2243,21 +2242,38 @@ body.catalog-body {
   }
 
  .hero-logo {
-    position: absolute !important;
+    position: relative !important;
 
-    top: 35px !important;
-    right: 18px !important;
+    top: auto !important;
+    right: auto !important;
     bottom: auto !important;
     left: auto !important;
 
-    width: 180px !important;
-    max-width: 45vw !important;
+    display: block;
+
+    width: 190px !important;
+    max-width: 55vw !important;
     height: auto !important;
+
+    margin: 0 auto 18px !important;
 
     transform: none !important;
     animation: none !important;
 
     object-fit: contain;
+}
+
+.floating-buttons {
+    left: auto !important;
+    right: 14px !important;
+    bottom: 18px !important;
+    gap: 10px;
+}
+
+.float-btn {
+    width: 52px;
+    height: 52px;
+    font-size: 21px;
 }
 
 }
@@ -4630,16 +4646,16 @@ body.catalog-body {
     touch-action: none !important;
   }
 
-  .floating-buttons {
+ .floating-buttons {
     position: fixed !important;
-    left: 14px !important;
-    right: auto !important;
+    left: auto !important;
+    right: 14px !important;
     bottom: calc(var(--safe-bottom, 0px) + 12px) !important;
     z-index: 999998 !important;
     display: flex !important;
     flex-direction: row !important;
     gap: 10px !important;
-  }
+}
 
   .float-btn {
     width: 52px !important;
@@ -5809,9 +5825,9 @@ body.catalog-body .catalog-banner-content {
   }
 
   body.catalog-body .catalog-hero {
-    padding: 30px 18px 245px !important;
+    padding: 28px 18px 30px !important;
     border-radius: 26px !important;
-  }
+}
 
   body.catalog-body .home-premium-row {
     gap: 18px !important;
