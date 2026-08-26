@@ -8,7 +8,8 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="{{ asset('css/catalogo_publico.css') }}?v=13">
+    <link rel="stylesheet"
+      href="{{ asset('css/catalogo_publico.css') }}?v={{ filemtime(public_path('css/catalogo_publico.css')) }}">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/page-flip/dist/css/page-flip.css">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/driver.js@1.3.6/dist/driver.css">
@@ -59,7 +60,7 @@
         };
     </script>
 
-    <script src="{{ asset('js/catalogo_publico.js') }}?v=14"></script>
+   <script src="{{ asset('js/catalogo_publico.js') }}?v={{ filemtime(public_path('js/catalogo_publico.js')) }}"></script>
 
     <!-- ONBOARDING / TOUR GUIADO -->
     <script src="https://cdn.jsdelivr.net/npm/driver.js@1.3.6/dist/driver.js.iife.js"></script>
